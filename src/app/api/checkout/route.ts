@@ -5,6 +5,7 @@ import { getPaymentProvider } from '@/lib/payments'
 import { generateQRPayload } from '@/lib/qr'
 import { generateOrderNumber, generateDisplayCode, formatEventDate } from '@/lib/utils/format'
 import { sendOrderConfirmation } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 
 const checkoutSchema = z.object({
   eventId: z.string().uuid(),
@@ -26,6 +27,18 @@ const checkoutSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 10 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+    const { limited, retryAfterMs } = rateLimit(`checkout:${ip}`, 10, 60000)
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
+
     const body = await request.json()
     const parsed = checkoutSchema.safeParse(body)
 
@@ -109,46 +122,46 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify ticket availability using raw SQL for row-level locking
+    // Atomically reserve tickets using row-level locking RPC
     let subtotal = 0
     const ticketTypeDetails: { id: string; name: string; price: number; quantity: number }[] = []
 
     for (const item of items) {
-      const { data: ticketType, error: ttError } = await supabase
-        .from('ticket_types')
-        .select('id, name, price, quantity_total, quantity_sold, max_per_order')
-        .eq('id', item.ticketTypeId)
-        .eq('event_id', eventId)
-        .single()
+      const { data: result, error: rpcError } = await supabase
+        .rpc('reserve_tickets', {
+          p_ticket_type_id: item.ticketTypeId,
+          p_event_id: eventId,
+          p_quantity: item.quantity,
+        })
 
-      if (ttError || !ticketType) {
+      if (rpcError) {
+        // Release any previously reserved tickets
+        for (const tt of ticketTypeDetails) {
+          await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+        }
         return NextResponse.json(
-          { error: `Ticket type not found: ${item.ticketTypeId}` },
+          { error: 'Failed to check ticket availability' },
+          { status: 500 }
+        )
+      }
+
+      if (!result.success) {
+        // Release any previously reserved tickets
+        for (const tt of ticketTypeDetails) {
+          await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+        }
+        return NextResponse.json(
+          { error: result.error },
           { status: 400 }
         )
       }
 
-      const remaining = ticketType.quantity_total - (ticketType.quantity_sold || 0)
-      if (item.quantity > remaining) {
-        return NextResponse.json(
-          { error: `Not enough tickets available for ${ticketType.name}. Only ${remaining} left.` },
-          { status: 400 }
-        )
-      }
-
-      if (ticketType.max_per_order && item.quantity > ticketType.max_per_order) {
-        return NextResponse.json(
-          { error: `Maximum ${ticketType.max_per_order} tickets per order for ${ticketType.name}` },
-          { status: 400 }
-        )
-      }
-
-      subtotal += ticketType.price * item.quantity
+      subtotal += result.price! * result.quantity!
       ticketTypeDetails.push({
-        id: ticketType.id,
-        name: ticketType.name,
-        price: ticketType.price,
-        quantity: item.quantity,
+        id: item.ticketTypeId,
+        name: result.name!,
+        price: result.price!,
+        quantity: result.quantity!,
       })
     }
 
@@ -164,6 +177,10 @@ export async function POST(request: Request) {
     )
 
     if (!paymentResult.success) {
+      // Release reserved tickets on payment failure
+      for (const tt of ticketTypeDetails) {
+        await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+      }
       return NextResponse.json(
         { error: paymentResult.error || 'Payment failed' },
         { status: 402 }
@@ -258,7 +275,9 @@ export async function POST(request: Request) {
     await supabase.from('order_items').insert(orderItems)
 
     // Create individual tickets with QR codes
-    const tickets: { id: string; qrCode: string; displayCode: string }[] = []
+    // quantity_sold already incremented atomically by reserve_tickets RPC
+    const tickets: { id: string; qrCode: string; displayCode: string; ticketTypeId: string }[] = []
+    const failedTickets: { ticketTypeId: string; error: string }[] = []
 
     for (const tt of ticketTypeDetails) {
       for (let i = 0; i < tt.quantity; i++) {
@@ -278,7 +297,11 @@ export async function POST(request: Request) {
           .single()
 
         if (ticketError || !ticket) {
-          continue // Skip failed tickets, don't fail entire order
+          failedTickets.push({
+            ticketTypeId: tt.id,
+            error: ticketError?.message || 'Unknown insert error',
+          })
+          continue
         }
 
         // Generate QR with real ticket ID
@@ -294,22 +317,29 @@ export async function POST(request: Request) {
           id: ticket.id,
           qrCode,
           displayCode,
+          ticketTypeId: tt.id,
         })
       }
+    }
 
-      // Increment quantity_sold
-      const { data: currentTT } = await supabase
-        .from('ticket_types')
-        .select('quantity_sold')
-        .eq('id', tt.id)
-        .single()
+    // If any tickets failed to create, flag order for manual review
+    if (failedTickets.length > 0) {
+      console.error('Ticket creation failures for order', orderNumber, ':', failedTickets)
+      await supabase
+        .from('orders')
+        .update({ status: 'needs_review', updated_at: new Date().toISOString() })
+        .eq('id', order.id)
 
-      if (currentTT) {
-        await supabase
-          .from('ticket_types')
-          .update({ quantity_sold: (currentTT.quantity_sold || 0) + tt.quantity })
-          .eq('id', tt.id)
-      }
+      return NextResponse.json(
+        {
+          error: 'Some tickets could not be created. Your order has been flagged for review.',
+          orderId: order.id,
+          orderNumber,
+          tickets,
+          failedCount: failedTickets.length,
+        },
+        { status: 207 }
+      )
     }
 
     // Send confirmation email (fire-and-forget)
@@ -320,7 +350,7 @@ export async function POST(request: Request) {
       eventName: event.name,
       eventDate: formatEventDate(event.start_time || new Date().toISOString()),
       tickets: tickets.map((t) => {
-        const tt = ticketTypeDetails.find((td) => td.id === t.qrCode.split(':')[2]) || ticketTypeDetails[0]
+        const tt = ticketTypeDetails.find((td) => td.id === t.ticketTypeId) || ticketTypeDetails[0]
         return {
           typeName: tt?.name || 'Ticket',
           displayCode: t.displayCode,

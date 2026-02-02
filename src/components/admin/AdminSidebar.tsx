@@ -11,6 +11,7 @@ import {
   Crown,
   ScanLine,
   UserCog,
+  RefreshCw,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/admin/vip', label: 'VIP Inquiries', icon: Crown },
   { href: '/admin/scanner', label: 'Scanner', icon: ScanLine },
   { href: '/admin/staff', label: 'Staff', icon: UserCog },
+  { href: '/admin/recurring', label: 'Recurring', icon: RefreshCw },
 ]
 
 export default function AdminSidebar() {

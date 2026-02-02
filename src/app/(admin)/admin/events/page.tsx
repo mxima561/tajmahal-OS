@@ -1,10 +1,18 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { formatCurrency, formatDateTime } from '@/lib/utils/format'
 import { EventWithTicketTypes } from '@/types/database'
-import { Calendar, Plus, Search } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
+import { generateUpcomingFridays } from '@/lib/events/generate-fridays'
+import { EventsTable } from './events-table'
 
 async function getEvents() {
+  // Auto-generate upcoming Fridays (idempotent, non-blocking)
+  try {
+    await generateUpcomingFridays()
+  } catch (e) {
+    console.error('Friday generation error:', e)
+  }
+
   const supabase = await createServerSupabaseClient()
 
   const { data: events, error } = await supabase
@@ -72,6 +80,19 @@ export default async function AdminEventsPage({
     { key: 'draft', label: 'Draft', count: events.filter((e) => getEventTab(e, now) === 'draft').length },
   ]
 
+  // Map to serializable rows for the client component
+  const eventRows = filteredEvents.map((event) => ({
+    id: event.id,
+    name: event.name,
+    dj_name: event.dj_name ?? null,
+    is_auto_generated: event.is_auto_generated ?? false,
+    start_time: event.start_time,
+    total_capacity: event.total_capacity,
+    status: getEventStatus(event),
+    ticketsSold: getTicketsSold(event),
+    revenue: getRevenue(event),
+  }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -124,74 +145,8 @@ export default async function AdminEventsPage({
         </div>
 
         {/* Table */}
-        {filteredEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-night-400">
-            <Calendar className="w-10 h-10 mb-3 text-night-600" />
-            <p className="text-sm">No events found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-night-700 text-night-400">
-                  <th className="text-left py-3 px-4 font-medium">Event Name</th>
-                  <th className="text-left py-3 px-4 font-medium">Date</th>
-                  <th className="text-left py-3 px-4 font-medium">Tickets</th>
-                  <th className="text-left py-3 px-4 font-medium">Revenue</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEvents.map((event) => {
-                  const status = getEventStatus(event)
-                  const sold = getTicketsSold(event)
-                  const revenue = getRevenue(event)
-
-                  return (
-                    <tr key={event.id} className="border-b border-night-800 last:border-0">
-                      <td className="py-3 px-4">
-                        <Link
-                          href={`/admin/events/${event.id}/edit`}
-                          className="font-medium text-white hover:text-gold-400 transition-colors"
-                        >
-                          {event.name}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        {formatDateTime(event.start_time)}
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        <span className="text-white font-medium">{sold}</span>
-                        <span className="text-night-500"> / {event.total_capacity}</span>
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        {formatCurrency(revenue)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <StatusBadge status={status} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <EventsTable events={eventRows} />
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: 'draft' | 'published' | 'cancelled' }) {
-  const styles = {
-    draft: 'bg-yellow-500/10 text-yellow-400',
-    published: 'bg-green-500/10 text-green-400',
-    cancelled: 'bg-red-500/10 text-red-400',
-  }
-
-  return (
-    <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium capitalize ${styles[status]}`}>
-      {status}
-    </span>
   )
 }

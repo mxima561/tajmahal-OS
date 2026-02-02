@@ -15,7 +15,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
@@ -26,38 +25,47 @@ export default function Navbar() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? 'bg-night-950/80 backdrop-blur-xl border-b border-gold-500/10'
+            ? 'bg-night-950/90 backdrop-blur-xl border-b border-gold-500/10'
             : 'bg-transparent'
         }`}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-20 items-center justify-between">
+          <div className="flex h-16 items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-gold-gradient text-2xl font-bold tracking-[0.2em]">
-                TAJ MAHAL
-              </span>
+            <Link href="/" className="flex items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/TajMahallogo.png"
+                alt="Taj Mahal"
+                className="h-14 w-auto"
+              />
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-10">
               <Link
                 href="#events"
-                className="text-sm font-medium text-night-200 hover:text-gold-400 transition-colors tracking-wider uppercase"
+                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
               >
                 Events
               </Link>
               <Link
                 href="#vip"
-                className="text-sm font-medium text-night-200 hover:text-gold-400 transition-colors tracking-wider uppercase"
+                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
               >
                 VIP
               </Link>
               <Link
-                href="#events"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-night-950 font-semibold text-sm px-6 py-2.5 rounded-full transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/40 tracking-wider uppercase"
+                href="#location"
+                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
               >
-                <Ticket className="w-4 h-4" />
+                Location
+              </Link>
+              <Link
+                href="#events"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-night-950 font-bold text-xs px-6 py-2.5 rounded-full transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/40 tracking-[0.2em] uppercase"
+              >
+                <Ticket className="w-3.5 h-3.5" />
                 Get Tickets
               </Link>
             </div>
@@ -68,7 +76,7 @@ export default function Navbar() {
               className="md:hidden text-gold-400 p-2"
               aria-label="Toggle menu"
             >
-              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -82,8 +90,12 @@ export default function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 bg-night-950/95 backdrop-blur-xl md:hidden"
+            className="fixed inset-0 z-40 bg-night-950/98 backdrop-blur-2xl md:hidden"
           >
+            {/* Art deco accents */}
+            <div className="absolute top-20 left-8 w-16 h-16 border-t border-l border-gold-500/20" />
+            <div className="absolute bottom-20 right-8 w-16 h-16 border-b border-r border-gold-500/20" />
+
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -91,24 +103,38 @@ export default function Navbar() {
               transition={{ duration: 0.3, delay: 0.1 }}
               className="flex flex-col items-center justify-center h-full gap-10"
             >
+              {/* Decorative line */}
+              <div className="gold-shimmer h-[1px] w-16 rounded-full mb-4" />
+
               <Link
                 href="#events"
                 onClick={() => setMobileOpen(false)}
-                className="text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
+                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
               >
                 Events
               </Link>
               <Link
                 href="#vip"
                 onClick={() => setMobileOpen(false)}
-                className="text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
+                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
               >
                 VIP
               </Link>
               <Link
+                href="#location"
+                onClick={() => setMobileOpen(false)}
+                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
+              >
+                Location
+              </Link>
+
+              {/* Decorative line */}
+              <div className="gold-shimmer h-[1px] w-16 rounded-full mt-4" />
+
+              <Link
                 href="#events"
                 onClick={() => setMobileOpen(false)}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 text-night-950 font-bold text-lg px-10 py-4 rounded-full shadow-lg shadow-gold-500/25 tracking-widest uppercase"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 text-night-950 font-bold text-base px-10 py-4 rounded-full shadow-lg shadow-gold-500/25 tracking-[0.2em] uppercase"
               >
                 <Ticket className="w-5 h-5" />
                 Get Tickets

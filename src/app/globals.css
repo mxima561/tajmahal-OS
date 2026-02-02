@@ -63,22 +63,269 @@ body {
   border-radius: 0.75rem;
 }
 
-/* Gold gradient text utility */
+/* ═══════════════════════════════════
+   GOLD & SHIMMER UTILITIES
+   ═══════════════════════════════════ */
+
 .text-gold-gradient {
-  background: linear-gradient(135deg, #D4A843 0%, #FFD966 50%, #D4A843 100%);
+  background: linear-gradient(135deg, #B8922E 0%, #D4A843 30%, #FFD966 55%, #D4A843 80%, #B8922E 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Gold shimmer animation */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 .gold-shimmer {
-  background: linear-gradient(90deg, #D4A843 0%, #FFD966 50%, #D4A843 100%);
+  background: linear-gradient(90deg, transparent 0%, #D4A843 20%, #FFD966 50%, #D4A843 80%, transparent 100%);
   background-size: 200% auto;
   animation: shimmer 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════
+   GRAIN / NOISE TEXTURE OVERLAY
+   ═══════════════════════════════════ */
+
+.grain-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ═══════════════════════════════════
+   ART DECO CORNER ACCENTS
+   ═══════════════════════════════════ */
+
+.art-deco-frame {
+  position: relative;
+}
+
+.art-deco-frame::before,
+.art-deco-frame::after {
+  content: '';
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-color: rgba(212, 168, 67, 0.3);
+  pointer-events: none;
+}
+
+.art-deco-frame::before {
+  top: 0;
+  left: 0;
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+.art-deco-frame::after {
+  bottom: 0;
+  right: 0;
+  border-bottom: 1px solid;
+  border-right: 1px solid;
+}
+
+/* Inner corners (use a child element with this class) */
+.art-deco-frame-inner::before,
+.art-deco-frame-inner::after {
+  content: '';
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-color: rgba(212, 168, 67, 0.3);
+  pointer-events: none;
+}
+
+.art-deco-frame-inner::before {
+  top: 0;
+  right: 0;
+  border-top: 1px solid;
+  border-right: 1px solid;
+}
+
+.art-deco-frame-inner::after {
+  bottom: 0;
+  left: 0;
+  border-bottom: 1px solid;
+  border-left: 1px solid;
+}
+
+/* ═══════════════════════════════════
+   FLOATING PARTICLE ANIMATION
+   ═══════════════════════════════════ */
+
+@keyframes float-drift {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.4;
+  }
+  25% {
+    transform: translate(10px, -20px) scale(1.2);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-5px, -35px) scale(0.8);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translate(15px, -15px) scale(1.1);
+    opacity: 0.6;
+  }
+}
+
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #D4A843;
+  border-radius: 50%;
+  animation: float-drift 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════
+   SECTION DIVIDER
+   ═══════════════════════════════════ */
+
+.section-divider {
+  position: relative;
+  height: 1px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.section-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 168, 67, 0.4), transparent);
+}
+
+/* ═══════════════════════════════════
+   STAGGERED ENTRANCE ANIMATIONS
+   ═══════════════════════════════════ */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes line-expand {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* ═══════════════════════════════════
+   GOLD GLOW EFFECTS
+   ═══════════════════════════════════ */
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(212, 168, 67, 0.15), 0 0 60px rgba(212, 168, 67, 0.05);
+}
+
+.gold-glow-hover:hover {
+  box-shadow: 0 0 30px rgba(212, 168, 67, 0.25), 0 0 80px rgba(212, 168, 67, 0.1);
+}
+
+/* ═══════════════════════════════════
+   GEOMETRIC PATTERN (subtle bg)
+   ═══════════════════════════════════ */
+
+.geo-pattern {
+  background-image:
+    linear-gradient(30deg, rgba(212, 168, 67, 0.03) 12%, transparent 12.5%, transparent 87%, rgba(212, 168, 67, 0.03) 87.5%, rgba(212, 168, 67, 0.03)),
+    linear-gradient(150deg, rgba(212, 168, 67, 0.03) 12%, transparent 12.5%, transparent 87%, rgba(212, 168, 67, 0.03) 87.5%, rgba(212, 168, 67, 0.03)),
+    linear-gradient(30deg, rgba(212, 168, 67, 0.03) 12%, transparent 12.5%, transparent 87%, rgba(212, 168, 67, 0.03) 87.5%, rgba(212, 168, 67, 0.03)),
+    linear-gradient(150deg, rgba(212, 168, 67, 0.03) 12%, transparent 12.5%, transparent 87%, rgba(212, 168, 67, 0.03) 87.5%, rgba(212, 168, 67, 0.03)),
+    linear-gradient(60deg, rgba(212, 168, 67, 0.02) 25%, transparent 25.5%, transparent 75%, rgba(212, 168, 67, 0.02) 75%, rgba(212, 168, 67, 0.02)),
+    linear-gradient(60deg, rgba(212, 168, 67, 0.02) 25%, transparent 25.5%, transparent 75%, rgba(212, 168, 67, 0.02) 75%, rgba(212, 168, 67, 0.02));
+  background-size: 80px 140px;
+  background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
+}
+
+/* ═══════════════════════════════════
+   UNDERLINE HOVER ANIMATION
+   ═══════════════════════════════════ */
+
+.hover-underline {
+  position: relative;
+}
+
+.hover-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #D4A843;
+  transition: width 0.3s ease;
+}
+
+.hover-underline:hover::after {
+  width: 100%;
+}
+
+/* ═══════════════════════════════════
+   PULSE RING (scroll indicator)
+   ═══════════════════════════════════ */
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.pulse-ring {
+  position: relative;
+}
+
+.pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(212, 168, 67, 0.4);
+  border-radius: 50%;
+  animation: pulse-ring 2.5s ease-out infinite;
 }

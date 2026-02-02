@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
 
 const vipSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -12,6 +13,18 @@ const vipSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+    const { limited, retryAfterMs } = rateLimit(`vip:${ip}`, 5, 60000)
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
+
     const body = await request.json()
     const parsed = vipSchema.safeParse(body)
 

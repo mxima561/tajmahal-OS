@@ -86,10 +86,12 @@ export type Database = {
           cancelled_at: string | null
           created_at: string | null
           description: string | null
+          dj_name: string | null
           doors_open: string | null
           end_time: string | null
           featured_image_url: string | null
           id: string
+          is_auto_generated: boolean | null
           is_featured: boolean | null
           name: string
           sale_end: string | null
@@ -105,10 +107,12 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string | null
           description?: string | null
+          dj_name?: string | null
           doors_open?: string | null
           end_time?: string | null
           featured_image_url?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           is_featured?: boolean | null
           name: string
           sale_end?: string | null
@@ -124,10 +128,12 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string | null
           description?: string | null
+          dj_name?: string | null
           doors_open?: string | null
           end_time?: string | null
           featured_image_url?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           is_featured?: boolean | null
           name?: string
           sale_end?: string | null
@@ -481,12 +487,129 @@ export type Database = {
           },
         ]
       }
+      friday_event_template: {
+        Row: {
+          id: string
+          venue_id: string
+          event_name: string
+          description: string | null
+          doors_open_time: string
+          start_time: string
+          end_time: string
+          default_status: string
+          weeks_ahead: number
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          venue_id: string
+          event_name?: string
+          description?: string | null
+          doors_open_time?: string
+          start_time?: string
+          end_time?: string
+          default_status?: string
+          weeks_ahead?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          venue_id?: string
+          event_name?: string
+          description?: string | null
+          doors_open_time?: string
+          start_time?: string
+          end_time?: string
+          default_status?: string
+          weeks_ahead?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_event_template_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friday_template_ticket_types: {
+        Row: {
+          id: string
+          template_id: string
+          name: string
+          price: number
+          currency: string
+          quantity_total: number
+          max_per_order: number | null
+          description: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          name: string
+          price: number
+          currency?: string
+          quantity_total: number
+          max_per_order?: number | null
+          description?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          name?: string
+          price?: number
+          currency?: string
+          quantity_total?: number
+          max_per_order?: number | null
+          description?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_template_ticket_types_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "friday_event_template"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reserve_tickets: {
+        Args: {
+          p_ticket_type_id: string
+          p_event_id: string
+          p_quantity: number
+        }
+        Returns: {
+          success: boolean
+          error: string | null
+          name: string | null
+          price: number | null
+          quantity: number | null
+        }
+      }
+      release_tickets: {
+        Args: {
+          p_ticket_type_id: string
+          p_quantity: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -512,6 +635,8 @@ export type Order = Tables<'orders'>
 export type OrderItem = Tables<'order_items'>
 export type Ticket = Tables<'tickets'>
 export type VipInquiry = Tables<'vip_inquiries'>
+export type FridayEventTemplate = Tables<'friday_event_template'>
+export type FridayTemplateTicketType = Tables<'friday_template_ticket_types'>
 
 // Event with relations
 export type EventWithTicketTypes = Event & {

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { generateSlug } from '@/lib/utils/format'
 import { EventWithTicketTypes } from '@/types/database'
 import { useRouter, useParams } from 'next/navigation'
-import { Plus, Trash2, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Loader2, AlertTriangle, X, ImageIcon } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
@@ -27,6 +27,7 @@ const ticketTypeSchema = z.object({
 const eventSchema = z.object({
   name: z.string().min(1, 'Event name is required').max(200, 'Max 200 characters'),
   description: z.string().optional(),
+  dj_name: z.string().optional(),
   start_time: z.string().min(1, 'Start date/time is required'),
   end_time: z.string().optional(),
   doors_open: z.string().optional(),
@@ -40,6 +41,7 @@ const eventSchema = z.object({
 type EventFormData = {
   name: string
   description?: string
+  dj_name?: string
   start_time: string
   end_time?: string
   doors_open?: string
@@ -77,6 +79,8 @@ export default function EditEventPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [event, setEvent] = useState<EventWithTicketTypes | null>(null)
   const [deletedTicketTypeIds, setDeletedTicketTypeIds] = useState<string[]>([])
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   const {
     register,
@@ -91,6 +95,7 @@ export default function EditEventPage() {
     defaultValues: {
       name: '',
       description: '',
+      dj_name: '',
       start_time: '',
       end_time: '',
       doors_open: '',
@@ -132,10 +137,12 @@ export default function EditEventPage() {
 
     const eventData = data as EventWithTicketTypes
     setEvent(eventData)
+    setImageUrl(eventData.featured_image_url || null)
 
     reset({
       name: eventData.name,
       description: eventData.description || '',
+      dj_name: eventData.dj_name || '',
       start_time: toLocalDateTimeValue(eventData.start_time),
       end_time: toLocalDateTimeValue(eventData.end_time),
       doors_open: toLocalDateTimeValue(eventData.doors_open),
@@ -169,10 +176,67 @@ export default function EditEventPage() {
     remove(index)
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('eventId', eventId)
+
+      const res = await fetch('/api/admin/upload-event-image', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to upload image')
+        return
+      }
+
+      setImageUrl(data.url)
+      toast.success('Image uploaded')
+    } catch {
+      toast.error('Failed to upload image')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleRemoveImage() {
+    setUploading(true)
+    try {
+      const res = await fetch('/api/admin/upload-event-image', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId }),
+      })
+
+      if (!res.ok) {
+        toast.error('Failed to remove image')
+        return
+      }
+
+      setImageUrl(null)
+      toast.success('Image removed')
+    } catch {
+      toast.error('Failed to remove image')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function onSubmit(data: EventFormData) {
     setSubmitting(true)
     try {
       const eventSlug = generateSlug(data.name)
+
+      // Auto-feature when DJ name is set
+      const hasDj = !!data.dj_name?.trim()
 
       // Update event
       const { error: eventError } = await supabase
@@ -181,11 +245,12 @@ export default function EditEventPage() {
           name: data.name,
           slug: eventSlug,
           description: data.description || null,
+          dj_name: data.dj_name?.trim() || null,
           start_time: new Date(data.start_time).toISOString(),
           end_time: data.end_time ? new Date(data.end_time).toISOString() : null,
           doors_open: data.doors_open ? new Date(data.doors_open).toISOString() : null,
           status: data.status,
-          is_featured: data.is_featured,
+          is_featured: hasDj || data.is_featured,
           sale_start: data.sale_start ? new Date(data.sale_start).toISOString() : null,
           sale_end: data.sale_end ? new Date(data.sale_end).toISOString() : null,
           total_capacity: totalCapacity,
@@ -347,6 +412,67 @@ export default function EditEventPage() {
                 disabled={isCancelled}
                 className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm resize-none disabled:opacity-50"
               />
+            </div>
+
+            {/* DJ Name */}
+            <div>
+              <label className="block text-sm font-medium text-night-200 mb-1.5">
+                DJ / Artist Name
+              </label>
+              <input
+                {...register('dj_name')}
+                type="text"
+                placeholder="e.g. DJ Ahmed — leave empty for regular nights"
+                disabled={isCancelled}
+                className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+              />
+              <p className="text-xs text-night-500 mt-1">When set, the event is automatically featured on the public site</p>
+            </div>
+
+            {/* Cover Image */}
+            <div>
+              <label className="block text-sm font-medium text-night-200 mb-1.5">
+                Cover Image
+              </label>
+              {imageUrl ? (
+                <div className="relative rounded-lg overflow-hidden border border-night-600 bg-night-800">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt="Event cover"
+                    className="w-full aspect-[16/9] object-cover"
+                  />
+                  {!isCancelled && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      disabled={uploading}
+                      className="absolute top-2 right-2 p-1.5 bg-night-900/80 hover:bg-red-500/80 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <label className={`flex flex-col items-center justify-center w-full aspect-[16/9] border-2 border-dashed border-night-600 rounded-lg bg-night-800 transition-colors ${!isCancelled ? 'hover:border-gold-500/50 cursor-pointer' : 'opacity-50'}`}>
+                  {uploading ? (
+                    <Loader2 className="w-8 h-8 animate-spin text-gold-500" />
+                  ) : (
+                    <>
+                      <ImageIcon className="w-8 h-8 text-night-500 mb-2" />
+                      <span className="text-sm text-night-400">Click to upload cover image</span>
+                      <span className="text-xs text-night-500 mt-1">JPEG, PNG, or WebP — max 5MB</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageUpload}
+                    disabled={isCancelled || uploading}
+                    className="hidden"
+                  />
+                </label>
+              )}
             </div>
 
             {/* Date/Time Row */}

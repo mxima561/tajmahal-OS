@@ -4,74 +4,102 @@ import { motion } from 'framer-motion'
 import { Crown, Wine, Star, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
+const features = [
+  {
+    icon: Crown,
+    title: 'Priority Access',
+    description: 'Skip the line with exclusive VIP entry and reserved premium seating',
+  },
+  {
+    icon: Wine,
+    title: 'Bottle Service',
+    description: 'Full bottle service with premium spirits and dedicated mixologist',
+  },
+  {
+    icon: Star,
+    title: 'Personal Host',
+    description: 'A dedicated VIP host ensures every moment of your night is flawless',
+  },
+]
+
 export default function VipSection() {
   return (
-    <section id="vip" className="py-24 sm:py-32 relative overflow-hidden">
-      {/* Subtle background glow */}
-      <div className="absolute top-1/2 left-0 -translate-y-1/2 w-[500px] h-[500px] bg-gold-500/[0.03] rounded-full blur-[120px]" />
+    <section id="vip" className="relative overflow-hidden">
+      {/* Section divider */}
+      <div className="section-divider" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Left: Image placeholder */}
+      <div className="relative py-24 sm:py-32">
+        {/* Background image with heavy overlay */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/Friday-Night-atTaj-Mahal-Club-Sharm-El-Sheikh.webp"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-night-950/85" />
+        <div className="absolute inset-0 geo-pattern" />
+        <div className="grain-overlay" />
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Heading */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            whileInView={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.7 }}
+            className="text-center mb-16"
           >
-            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden border border-gold-500/20">
-              {/* Placeholder gradient mimicking a dark VIP lounge */}
-              <div className="absolute inset-0 bg-gradient-to-br from-gold-900/30 via-night-900 to-purple-950/40" />
-              <div className="absolute inset-0 bg-gradient-to-t from-night-950/80 via-transparent to-transparent" />
-
-              {/* Decorative elements */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-gold-500/10 rounded-full blur-[60px]" />
-              <div className="absolute bottom-8 left-8 right-8">
-                <div className="gold-shimmer h-[1px] rounded-full" />
-              </div>
-
-              {/* Center icon */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Crown className="w-20 h-20 text-gold-500/20" />
-              </div>
+            <p className="text-gold-500/70 text-xs tracking-[0.4em] uppercase mb-4">
+              Exclusive
+            </p>
+            <h2 className="font-display text-gold-gradient text-4xl sm:text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+              VIP Experience
+            </h2>
+            <p className="text-night-200/70 text-lg font-light max-w-2xl mx-auto leading-relaxed">
+              Elevate your night with our exclusive VIP service. Premium tables,
+              panoramic views, and a private host for an unforgettable evening.
+            </p>
+            <div className="flex justify-center mt-8">
+              <div className="gold-shimmer h-[1px] w-20 rounded-full" />
             </div>
           </motion.div>
 
-          {/* Right: Content */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            <h2 className="text-gold-gradient text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight">
-              VIP Experience
-            </h2>
-
-            <p className="text-night-200 text-lg leading-relaxed mb-8">
-              Elevate your night with our exclusive VIP service. Premium tables with
-              panoramic views, dedicated bottle service, and a private host ensuring
-              every moment is flawless.
-            </p>
-
-            <div className="space-y-5 mb-10">
-              {[
-                { icon: Crown, text: 'Priority entry & reserved premium seating' },
-                { icon: Wine, text: 'Full bottle service with premium spirits' },
-                { icon: Star, text: 'Dedicated VIP host for your party' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gold-500/10 border border-gold-500/20 flex items-center justify-center shrink-0">
-                    <Icon className="w-5 h-5 text-gold-500" />
-                  </div>
-                  <span className="text-night-200 text-sm sm:text-base">{text}</span>
+          {/* Features — horizontal on desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mb-16">
+            {features.map(({ icon: Icon, title, description }, index) => (
+              <motion.div
+                key={title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
+                className="text-center group"
+              >
+                <div className="w-16 h-16 rounded-full bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mx-auto mb-5 group-hover:bg-gold-500/15 group-hover:border-gold-500/30 transition-all duration-500">
+                  <Icon className="w-7 h-7 text-gold-500" />
                 </div>
-              ))}
-            </div>
+                <h3 className="font-display text-white text-lg font-semibold mb-2 tracking-wide">
+                  {title}
+                </h3>
+                <div className="gold-shimmer h-[1px] w-8 mx-auto rounded-full mb-3" />
+                <p className="text-night-300 text-sm leading-relaxed">
+                  {description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
 
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="text-center"
+          >
             <Link
               href="/vip"
-              className="group inline-flex items-center gap-3 bg-transparent border-2 border-gold-500 text-gold-400 hover:bg-gold-500 hover:text-night-950 font-bold text-sm px-8 py-3.5 rounded-full transition-all duration-500 tracking-[0.15em] uppercase"
+              className="group inline-flex items-center gap-3 border-2 border-gold-500/50 hover:border-gold-500 text-gold-400 hover:text-night-950 hover:bg-gold-500 font-bold text-sm px-10 py-4 rounded-full transition-all duration-500 tracking-[0.2em] uppercase"
             >
               Reserve VIP
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -79,6 +107,9 @@ export default function VipSection() {
           </motion.div>
         </div>
       </div>
+
+      {/* Section divider */}
+      <div className="section-divider" />
     </section>
   )
 }
