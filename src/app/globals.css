@@ -3,25 +3,82 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0A0A0A;
+  --foreground: #EDEDED;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F0F0F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2A2A2A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4D4D4D;
+}
+
+/* html5-qrcode scanner overrides */
+#mobile-qr-reader {
+  border: none !important;
+  background: #0A0A0A !important;
+  width: 100% !important;
+  min-height: 300px;
+}
+#mobile-qr-reader video {
+  border-radius: 0.75rem;
+  width: 100% !important;
+  object-fit: cover;
+}
+#mobile-qr-reader img[alt="Info icon"] {
+  display: none !important;
+}
+#mobile-qr-reader > div {
+  background: transparent !important;
+  border: none !important;
+}
+#mobile-qr-reader__dashboard_section,
+#mobile-qr-reader__dashboard_section_swaplink,
+#mobile-qr-reader__status_span,
+#mobile-qr-reader__header_message {
+  display: none !important;
+}
+#mobile-qr-reader__scan_region {
+  background: transparent !important;
+  min-height: 280px !important;
+}
+#mobile-qr-reader__scan_region video {
+  border-radius: 0.75rem;
+}
+
+/* Gold gradient text utility */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #D4A843 0%, #FFD966 50%, #D4A843 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gold shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, #D4A843 0%, #FFD966 50%, #D4A843 100%);
+  background-size: 200% auto;
+  animation: shimmer 3s ease-in-out infinite;
 }
