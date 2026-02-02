@@ -33,22 +33,38 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect admin routes (except login) and scanner route
+  // Protect admin routes (except login)
   const isProtectedAdmin =
     request.nextUrl.pathname.startsWith('/admin') &&
     !request.nextUrl.pathname.startsWith('/admin/login')
-  const isProtectedScanner = request.nextUrl.pathname.startsWith('/scanner')
 
-  if ((isProtectedAdmin || isProtectedScanner) && !user) {
+  // Protect scanner routes (except scanner login)
+  const isProtectedScanner =
+    request.nextUrl.pathname.startsWith('/scanner') &&
+    !request.nextUrl.pathname.startsWith('/scanner/login')
+
+  if (isProtectedAdmin && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin/login'
     return NextResponse.redirect(url)
   }
 
-  // Redirect logged-in users away from login page
+  if (isProtectedScanner && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/scanner/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Redirect logged-in users away from login pages
   if (request.nextUrl.pathname === '/admin/login' && user) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin'
+    return NextResponse.redirect(url)
+  }
+
+  if (request.nextUrl.pathname === '/scanner/login' && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/scanner'
     return NextResponse.redirect(url)
   }
 

@@ -1,16 +1,57 @@
-import { createServiceRoleClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { validateQRCode } from '@/lib/qr'
-import { NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: Request) {
+const RATE_LIMIT = 30          // max requests
+const RATE_WINDOW = 60 * 1000  // per 1 minute
+
+export async function POST(request: NextRequest) {
   try {
+    // --- Rate limiting (by IP) ---
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+    const { limited, retryAfterMs } = rateLimit(ip, RATE_LIMIT, RATE_WINDOW)
+
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) },
+        }
+      )
+    }
+
+    // --- Auth guard: require authenticated admin/staff ---
+    const supabase = await createServerSupabaseClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!adminUser) {
+      return NextResponse.json({ error: 'Forbidden — staff access required' }, { status: 403 })
+    }
+
+    // --- Route to action handler ---
     const body = await request.json()
     const { action } = body
 
     if (action === 'verify') {
       return handleVerify(body)
     } else if (action === 'checkin') {
-      return handleCheckin(body)
+      return handleCheckin(body, adminUser.id)
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -173,7 +214,7 @@ async function handleVerify(body: { code: string; eventId: string }) {
   })
 }
 
-async function handleCheckin(body: { ticketId: string }) {
+async function handleCheckin(body: { ticketId: string }, checkedInBy: string) {
   const { ticketId } = body
 
   if (!ticketId) {
@@ -211,6 +252,7 @@ async function handleCheckin(body: { ticketId: string }) {
     .update({
       status: 'used',
       checked_in_at: new Date().toISOString(),
+      checked_in_by: checkedInBy,
     })
     .eq('id', ticketId)
 
