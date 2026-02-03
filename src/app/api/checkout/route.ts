@@ -369,7 +369,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error('Checkout error:', err)
     return NextResponse.json(
-      { error: `Checkout failed: ${err instanceof Error ? err.message : 'Unknown error'}` },
+      { error: 'An error occurred during checkout. Please try again.' },
       { status: 500 }
     )
   }

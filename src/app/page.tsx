@@ -4,7 +4,9 @@ import Navbar from '@/components/public/Navbar'
 import Footer from '@/components/public/Footer'
 import HeroSection from '@/components/public/HeroSection'
 import EventsGrid from '@/components/public/EventsGrid'
+import TextInterlude from '@/components/public/TextInterlude'
 import VipSection from '@/components/public/VipSection'
+import GallerySection from '@/components/public/GallerySection'
 import LocationSection from '@/components/public/LocationSection'
 
 async function getUpcomingEvents(): Promise<EventWithTicketTypes[]> {
@@ -35,7 +37,9 @@ export default async function HomePage() {
       <main className="min-h-screen">
         <HeroSection />
         <EventsGrid events={events} />
+        <TextInterlude />
         <VipSection />
+        <GallerySection />
         <LocationSection />
       </main>
       <Footer />

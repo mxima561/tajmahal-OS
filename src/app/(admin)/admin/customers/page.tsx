@@ -12,9 +12,13 @@ async function getCustomers(searchQuery?: string) {
     .order('total_spent', { ascending: false, nullsFirst: false })
 
   if (searchQuery) {
-    query = query.or(
-      `name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
-    )
+    // Sanitize search input to prevent PostgREST filter injection
+    const sanitized = searchQuery.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.or(
+        `name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+      )
+    }
   }
 
   const { data: customers, error } = await query

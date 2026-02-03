@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Playfair_Display } from "next/font/google";
+import { Oswald } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
@@ -14,9 +14,10 @@ const geistMono = localFont({
   variable: "--font-geist-mono",
   weight: "100 900",
 });
-const playfair = Playfair_Display({
+const oswald = Oswald({
   subsets: ["latin"],
   variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -34,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased bg-night-950 text-white`}
+        className={`${geistSans.variable} ${geistMono.variable} ${oswald.variable} font-sans antialiased bg-night-950 text-white`}
       >
         {children}
         <Toaster

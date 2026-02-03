@@ -21,9 +21,13 @@ async function getOrders(filters: { event?: string; status?: string; q?: string 
   }
 
   if (filters.q) {
-    query = query.or(
-      `order_number.ilike.%${filters.q}%,customer_name.ilike.%${filters.q}%,customer_email.ilike.%${filters.q}%`
-    )
+    // Sanitize search input to prevent PostgREST filter injection
+    const sanitized = filters.q.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.or(
+        `order_number.ilike.%${sanitized}%,customer_name.ilike.%${sanitized}%,customer_email.ilike.%${sanitized}%`
+      )
+    }
   }
 
   const { data: orders, error } = await query

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { sendTelegramMessage } from '@/lib/telegram'
 
 const vipSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -74,6 +75,17 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    // Send Telegram notification (fire-and-forget)
+    sendTelegramMessage(
+      `🎉 <b>New VIP Inquiry</b>\n\n` +
+      `<b>Name:</b> ${name}\n` +
+      `<b>Phone:</b> ${phone}\n` +
+      `<b>Email:</b> ${email}\n` +
+      `<b>Party Size:</b> ${partySize}\n` +
+      (message ? `<b>Message:</b> ${message}\n` : '') +
+      `\n📋 <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://tajmahal-tickets.vercel.app'}/admin/vip">View in Admin</a>`
+    ).catch(() => {}) // silently ignore notification failures
 
     return NextResponse.json({ success: true })
   } catch (error) {

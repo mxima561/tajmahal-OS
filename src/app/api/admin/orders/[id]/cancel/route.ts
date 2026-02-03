@@ -20,7 +20,7 @@ export async function POST(
     .eq('auth_user_id', user.id)
     .single()
 
-  if (!adminUser) {
+  if (!adminUser || !['manager', 'super_admin'].includes(adminUser.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

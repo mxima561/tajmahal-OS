@@ -17,15 +17,15 @@ export async function POST(request: Request) {
     .eq('auth_user_id', user.id)
     .single()
 
-  if (!adminUser) {
+  if (!adminUser || !['manager', 'super_admin'].includes(adminUser.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const body = await request.json()
   const { eventIds } = body as { eventIds: string[] }
 
-  if (!Array.isArray(eventIds) || eventIds.length === 0) {
-    return NextResponse.json({ error: 'No event IDs provided' }, { status: 400 })
+  if (!Array.isArray(eventIds) || eventIds.length === 0 || eventIds.length > 100) {
+    return NextResponse.json({ error: 'Invalid event IDs (provide 1-100)' }, { status: 400 })
   }
 
   // Validate all IDs

@@ -50,7 +50,10 @@ export function validateQRCode(qrData: string): {
     .digest('hex')
     .substring(0, 16)
 
-  if (receivedSignature !== expectedSignature) {
+  // Use constant-time comparison to prevent timing attacks
+  const sigBuffer = Buffer.from(receivedSignature, 'utf8')
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+  if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
     return { valid: false, error: 'Invalid ticket — signature mismatch' }
   }
 

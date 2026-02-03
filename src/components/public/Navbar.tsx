@@ -2,147 +2,94 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Ticket } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
+
+const MENU_ITEMS = [
+  { label: 'Events', href: '#events' },
+  { label: 'VIP', href: '/vip' },
+  { label: 'Gallery', href: '#gallery' },
+  { label: 'Location', href: '#location' },
+  { label: 'Contact', href: 'mailto:info@tajmahal-sharm.com' },
+]
 
 export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const handleScroll = () => setScrolled(window.scrollY > 50)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [mobileOpen])
+  }, [menuOpen])
 
   return (
     <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? 'bg-night-950/90 backdrop-blur-xl border-b border-gold-500/10'
-            : 'bg-transparent'
+      <header className="fixed top-0 left-0 w-full z-40 transition-all duration-300 px-4 py-4 md:px-8 md:py-6 flex justify-between items-center pointer-events-none">
+        {/* Logo pill */}
+        <div className={`pointer-events-auto transition-opacity duration-300 ${scrolled ? 'opacity-0 md:opacity-100' : 'opacity-100'}`}>
+          <Link href="/" className="block">
+            <div className="font-display font-bold text-2xl md:text-3xl tracking-tighter text-white bg-taj-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+              TAJ MAHAL
+            </div>
+          </Link>
+        </div>
+
+        {/* Menu button */}
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="pointer-events-auto group flex items-center gap-3 bg-white text-taj-black px-5 py-2.5 rounded-full font-medium text-sm uppercase tracking-wide hover:bg-taj-gold transition-colors duration-300 shadow-lg"
+        >
+          <span className="hidden md:block">Menu</span>
+          <Menu size={18} />
+        </button>
+      </header>
+
+      {/* Menu Overlay */}
+      <div
+        className={`fixed inset-0 z-50 bg-taj-black transition-transform duration-500 ease-[cubic-bezier(0.87,0,0.13,1)] ${
+          menuOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/TajMahallogo.png"
-                alt="Taj Mahal"
-                className="h-14 w-auto"
-              />
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-10">
-              <Link
-                href="#events"
-                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
-              >
-                Events
-              </Link>
-              <Link
-                href="#vip"
-                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
-              >
-                VIP
-              </Link>
-              <Link
-                href="#location"
-                className="hover-underline text-xs font-medium text-night-200 hover:text-gold-400 transition-colors tracking-[0.25em] uppercase"
-              >
-                Location
-              </Link>
-              <Link
-                href="#events"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-night-950 font-bold text-xs px-6 py-2.5 rounded-full transition-all duration-300 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/40 tracking-[0.2em] uppercase"
-              >
-                <Ticket className="w-3.5 h-3.5" />
-                Get Tickets
-              </Link>
-            </div>
-
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden text-gold-400 p-2"
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 bg-night-950/98 backdrop-blur-2xl md:hidden"
+        {/* Close button */}
+        <div className="absolute top-0 right-0 p-6 z-20">
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
           >
-            {/* Art deco accents */}
-            <div className="absolute top-20 left-8 w-16 h-16 border-t border-l border-gold-500/20" />
-            <div className="absolute bottom-20 right-8 w-16 h-16 border-b border-r border-gold-500/20" />
+            <X size={24} />
+          </button>
+        </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="flex flex-col items-center justify-center h-full gap-10"
-            >
-              {/* Decorative line */}
-              <div className="gold-shimmer h-[1px] w-16 rounded-full mb-4" />
+        {/* Menu links */}
+        <div className="h-full w-full flex items-center justify-center">
+          <nav className="flex flex-col items-center gap-4 md:gap-6">
+            {MENU_ITEMS.map((item, index) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                className={`text-4xl md:text-6xl font-display font-bold uppercase text-white hover:text-taj-gold transition-all duration-300 transform ${
+                  menuOpen ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+                }`}
+                style={{ transitionDelay: menuOpen ? `${index * 50}ms` : '0ms' }}
+              >
+                {item.label}
+              </Link>
+            ))}
 
-              <Link
-                href="#events"
-                onClick={() => setMobileOpen(false)}
-                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
-              >
-                Events
-              </Link>
-              <Link
-                href="#vip"
-                onClick={() => setMobileOpen(false)}
-                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
-              >
-                VIP
-              </Link>
-              <Link
-                href="#location"
-                onClick={() => setMobileOpen(false)}
-                className="font-display text-2xl font-medium text-night-100 hover:text-gold-400 transition-colors tracking-[0.3em] uppercase"
-              >
-                Location
-              </Link>
-
-              {/* Decorative line */}
-              <div className="gold-shimmer h-[1px] w-16 rounded-full mt-4" />
-
-              <Link
-                href="#events"
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-600 to-gold-500 text-night-950 font-bold text-base px-10 py-4 rounded-full shadow-lg shadow-gold-500/25 tracking-[0.2em] uppercase"
-              >
-                <Ticket className="w-5 h-5" />
-                Get Tickets
-              </Link>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="mt-12 flex gap-6 text-gray-400">
+              <span className="hover:text-white transition-colors cursor-pointer">EN</span>
+              <span>/</span>
+              <span className="hover:text-white transition-colors cursor-pointer">AR</span>
+            </div>
+          </nav>
+        </div>
+      </div>
     </>
   )
 }
