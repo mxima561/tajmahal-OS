@@ -1,8 +1,8 @@
 'use client'
 
-import { Suspense, useState, useEffect, useMemo } from 'react'
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { CreditCard, ShoppingBag, User, Mail, Phone, Loader2, Lock } from 'lucide-react'
+import { CreditCard, ShoppingBag, User, Mail, Phone, Loader2, Lock, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
@@ -26,6 +26,7 @@ interface LineItem {
 function CheckoutPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
 
   const eventId = searchParams.get('eventId') ?? ''
   const items: LineItem[] = useMemo(() => {
@@ -44,11 +45,31 @@ function CheckoutPage() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [paymentProvider, setPaymentProvider] = useState<'mock' | 'cybersource' | null>(null)
 
-  // Mock payment fields (cosmetic only)
-  const [cardNumber] = useState('4111111111111111')
-  const [expiry] = useState('12/28')
-  const [cvv] = useState('123')
+  // CyberSource redirect form state
+  const [csFormAction, setCsFormAction] = useState('')
+  const [csFormParams, setCsFormParams] = useState<Record<string, string>>({})
+
+  // Check for error/success from CyberSource return redirect
+  const errorParam = searchParams.get('error')
+  useEffect(() => {
+    if (errorParam) {
+      toast.error(decodeURIComponent(errorParam))
+    }
+  }, [errorParam])
+
+  // Detect payment provider on mount
+  useEffect(() => {
+    fetch('/api/payment/session', { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        setPaymentProvider(data.provider || 'mock')
+      })
+      .catch(() => {
+        setPaymentProvider('mock')
+      })
+  }, [])
 
   // Fetch event name on mount
   useEffect(() => {
@@ -71,6 +92,13 @@ function CheckoutPage() {
 
   const total = subtotal // No fees in MVP
 
+  // Auto-submit CyberSource form when params are set
+  useEffect(() => {
+    if (csFormAction && Object.keys(csFormParams).length > 0 && formRef.current) {
+      formRef.current.submit()
+    }
+  }, [csFormAction, csFormParams])
+
   async function handlePayNow() {
     // Validation
     if (!customerName.trim()) {
@@ -90,35 +118,69 @@ function CheckoutPage() {
 
     try {
       const idempotencyKey = crypto.randomUUID()
-      const paymentToken = 'tok_mock_' + Date.now()
 
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId,
-          items: items.map((item) => ({
-            ticketTypeId: item.ticketTypeId,
-            quantity: item.quantity,
-          })),
-          customer: {
-            name: customerName.trim(),
-            email: customerEmail.trim().toLowerCase(),
-            phone: customerPhone.trim() || undefined,
-          },
-          paymentToken,
-          idempotencyKey,
-          turnstileToken: turnstileToken || undefined,
-        }),
-      })
+      if (paymentProvider === 'cybersource') {
+        // CyberSource Secure Acceptance redirect flow
+        const response = await fetch('/api/payment/secure-acceptance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId,
+            items: items.map((item) => ({
+              ticketTypeId: item.ticketTypeId,
+              quantity: item.quantity,
+            })),
+            customer: {
+              name: customerName.trim(),
+              email: customerEmail.trim().toLowerCase(),
+              phone: customerPhone.trim() || undefined,
+            },
+            idempotencyKey,
+          }),
+        })
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Checkout failed')
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to prepare payment')
+        }
+
+        // Set form action and params to trigger auto-submit
+        setCsFormAction(data.checkoutUrl)
+        setCsFormParams(data.formParams)
+        // Form will auto-submit via useEffect
+      } else {
+        // Mock payment flow (direct API)
+        const paymentToken = 'tok_mock_' + Date.now()
+
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId,
+            items: items.map((item) => ({
+              ticketTypeId: item.ticketTypeId,
+              quantity: item.quantity,
+            })),
+            customer: {
+              name: customerName.trim(),
+              email: customerEmail.trim().toLowerCase(),
+              phone: customerPhone.trim() || undefined,
+            },
+            paymentToken,
+            idempotencyKey,
+            turnstileToken: turnstileToken || undefined,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Checkout failed')
+        }
+
+        router.push(`/confirmation?orderId=${data.orderId}`)
       }
-
-      router.push(`/confirmation?orderId=${data.orderId}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setIsProcessing(false)
@@ -146,6 +208,15 @@ function CheckoutPage() {
 
   return (
     <div className="bg-night-950 min-h-screen pb-24">
+      {/* Hidden form for CyberSource Secure Acceptance redirect */}
+      {csFormAction && (
+        <form ref={formRef} method="POST" action={csFormAction} className="hidden">
+          {Object.entries(csFormParams).map(([key, value]) => (
+            <input key={key} type="hidden" name={key} value={value} />
+          ))}
+        </form>
+      )}
+
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-8">
         {/* Page header */}
         <div className="mb-8">
@@ -284,59 +355,81 @@ function CheckoutPage() {
                 <h2 className="text-xl font-bold text-white">Payment</h2>
               </div>
 
-              <div className="bg-night-900 border border-night-700/50 rounded-xl p-5 sm:p-6 space-y-4">
-                {/* Card Number */}
-                <div>
-                  <label htmlFor="card" className="block text-sm font-medium text-night-300 mb-1.5">
-                    Card Number
-                  </label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-night-500" />
-                    <input
-                      id="card"
-                      type="text"
-                      value={cardNumber}
-                      readOnly
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-night-400 cursor-not-allowed"
-                    />
+              {paymentProvider === 'cybersource' ? (
+                /* CyberSource: card details are entered on CyberSource's hosted page */
+                <div className="bg-night-900 border border-night-700/50 rounded-xl p-5 sm:p-6">
+                  <div className="flex items-center gap-3 text-night-300">
+                    <ExternalLink className="w-5 h-5 text-gold-500 shrink-0" />
+                    <div>
+                      <p className="text-white font-medium">Secure Payment</p>
+                      <p className="text-sm text-night-400 mt-1">
+                        You&apos;ll be redirected to our secure payment provider to enter your card details.
+                        Your payment information is never stored on our servers.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-night-500 text-xs mt-4 pt-3 border-t border-night-800">
+                    <Lock className="w-3 h-3" />
+                    <span>256-bit SSL encrypted payment powered by CyberSource</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Expiry */}
+              ) : paymentProvider === 'mock' ? (
+                /* Mock: show fake card fields */
+                <div className="bg-night-900 border border-night-700/50 rounded-xl p-5 sm:p-6 space-y-4">
                   <div>
-                    <label htmlFor="expiry" className="block text-sm font-medium text-night-300 mb-1.5">
-                      Expiry
+                    <label htmlFor="card" className="block text-sm font-medium text-night-300 mb-1.5">
+                      Card Number
                     </label>
-                    <input
-                      id="expiry"
-                      type="text"
-                      value={expiry}
-                      readOnly
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 px-4 text-night-400 cursor-not-allowed"
-                    />
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-night-500" />
+                      <input
+                        id="card"
+                        type="text"
+                        value="4111111111111111"
+                        readOnly
+                        className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-night-400 cursor-not-allowed"
+                      />
+                    </div>
                   </div>
 
-                  {/* CVV */}
-                  <div>
-                    <label htmlFor="cvv" className="block text-sm font-medium text-night-300 mb-1.5">
-                      CVV
-                    </label>
-                    <input
-                      id="cvv"
-                      type="text"
-                      value={cvv}
-                      readOnly
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 px-4 text-night-400 cursor-not-allowed"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="expiry" className="block text-sm font-medium text-night-300 mb-1.5">
+                        Expiry
+                      </label>
+                      <input
+                        id="expiry"
+                        type="text"
+                        value="12/28"
+                        readOnly
+                        className="w-full bg-night-950 border border-night-700 rounded-lg py-3 px-4 text-night-400 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="cvv" className="block text-sm font-medium text-night-300 mb-1.5">
+                        CVV
+                      </label>
+                      <input
+                        id="cvv"
+                        type="text"
+                        value="123"
+                        readOnly
+                        className="w-full bg-night-950 border border-night-700 rounded-lg py-3 px-4 text-night-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-night-500 text-xs pt-1">
+                    <Lock className="w-3 h-3" />
+                    <span>Mock payment provider — no real charges will be made.</span>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 text-night-500 text-xs pt-1">
-                  <Lock className="w-3 h-3" />
-                  <span>Mock payment provider — no real charges will be made.</span>
+              ) : (
+                /* Loading state while detecting provider */
+                <div className="bg-night-900 border border-night-700/50 rounded-xl p-5 sm:p-6 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-night-500" />
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Bot Protection */}
@@ -350,13 +443,13 @@ function CheckoutPage() {
             <button
               type="button"
               onClick={handlePayNow}
-              disabled={isProcessing}
+              disabled={isProcessing || paymentProvider === null}
               className="w-full flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-400 text-night-950 font-bold py-4 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gold-500 text-lg"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Processing...
+                  {paymentProvider === 'cybersource' ? 'Redirecting...' : 'Processing...'}
                 </>
               ) : (
                 <>

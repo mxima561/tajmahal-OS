@@ -78,11 +78,10 @@ function generateSignature(
   if (/^[0-9a-fA-F]+$/.test(config.secretKey) && config.secretKey.length > 100) {
     // Long hex string - decode as hex
     decodedSecret = Buffer.from(config.secretKey, 'hex')
-    console.log('[CyberSource] Using hex-encoded secret')
+    // hex-encoded secret
   } else {
     // Standard base64 secret
     decodedSecret = Buffer.from(config.secretKey, 'base64')
-    console.log('[CyberSource] Using base64-encoded secret')
   }
   const signature = crypto
     .createHmac('sha256', decodedSecret)
@@ -119,7 +118,6 @@ async function makeRequest<T>(
   }
 
   try {
-    console.log('[CyberSource] Request:', method, `https://${host}${path}`)
     const response = await fetch(`https://${host}${path}`, {
       method,
       headers,
@@ -127,8 +125,6 @@ async function makeRequest<T>(
     })
 
     const responseText = await response.text()
-    console.log('[CyberSource] Response status:', response.status)
-    console.log('[CyberSource] Response body:', responseText.substring(0, 500))
 
     if (!response.ok) {
       // Try to parse error as JSON
@@ -138,7 +134,7 @@ async function makeRequest<T>(
       } catch {
         // Error response not JSON
       }
-      console.error('[CyberSource] API Error:', response.status, responseText)
+      console.error('[CyberSource] API Error:', response.status)
       const detailsMsg = errorData?.details?.map(d => `${d.field}: ${d.reason}`).join(', ')
       return {
         success: false,

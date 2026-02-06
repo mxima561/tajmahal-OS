@@ -19,16 +19,18 @@ function signSecureAcceptanceData(params: Record<string, string>, secretKey: str
     .map(field => `${field}=${params[field]}`)
     .join(',')
 
-  console.log('[SecureAcceptance] Data to sign:', dataToSign)
+  // Decode secret key - support hex (common for Secure Acceptance) and base64
+  let decodedSecret: Buffer
+  if (/^[0-9a-fA-F]+$/.test(secretKey) && secretKey.length > 50) {
+    decodedSecret = Buffer.from(secretKey, 'hex')
+  } else {
+    decodedSecret = Buffer.from(secretKey, 'base64')
+  }
 
-  // Secure Acceptance uses the secret key as a raw UTF-8 string
-  // NOT hex-decoded or base64-decoded
   const signature = crypto
-    .createHmac('sha256', secretKey)
+    .createHmac('sha256', decodedSecret)
     .update(dataToSign)
     .digest('base64')
-
-  console.log('[SecureAcceptance] Generated signature:', signature)
 
   return signature
 }
@@ -183,14 +185,6 @@ export async function POST(request: Request) {
     const checkoutUrl = environment === 'production'
       ? PRODUCTION_SECURE_ACCEPTANCE_URL
       : SANDBOX_SECURE_ACCEPTANCE_URL
-
-    console.log('[SecureAcceptance] Generated form data:')
-    console.log('  - Profile ID:', profileId)
-    console.log('  - Access Key:', accessKey.substring(0, 8) + '...')
-    console.log('  - Amount:', amountString, 'EGP')
-    console.log('  - Reference:', referenceNumber)
-    console.log('  - Environment:', environment)
-    console.log('  - Checkout URL:', checkoutUrl)
 
     return NextResponse.json({
       checkoutUrl,
