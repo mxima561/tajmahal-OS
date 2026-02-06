@@ -100,6 +100,7 @@ export type Database = {
           start_time: string
           status: string
           total_capacity: number
+          venue_capacity: number | null
           updated_at: string | null
           venue_id: string
         }
@@ -121,6 +122,7 @@ export type Database = {
           start_time: string
           status?: string
           total_capacity: number
+          venue_capacity?: number | null
           updated_at?: string | null
           venue_id: string
         }
@@ -142,6 +144,7 @@ export type Database = {
           start_time?: string
           status?: string
           total_capacity?: number
+          venue_capacity?: number | null
           updated_at?: string | null
           venue_id?: string
         }
@@ -584,6 +587,147 @@ export type Database = {
           },
         ]
       }
+      check_in_logs: {
+        Row: {
+          id: string
+          ticket_id: string | null
+          order_id: string | null
+          event_id: string
+          scanned_by: string | null
+          scanned_at: string
+          scan_result: string
+          device_info: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_id?: string | null
+          order_id?: string | null
+          event_id: string
+          scanned_by?: string | null
+          scanned_at?: string
+          scan_result: string
+          device_info?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_id?: string | null
+          order_id?: string | null
+          event_id?: string
+          scanned_by?: string | null
+          scanned_at?: string
+          scan_result?: string
+          device_info?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_in_logs_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_list_entries: {
+        Row: {
+          id: string
+          event_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          plus_count: number | null
+          added_by: string | null
+          added_by_name: string | null
+          status: string
+          checked_in_at: string | null
+          checked_in_by: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          plus_count?: number | null
+          added_by?: string | null
+          added_by_name?: string | null
+          status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          plus_count?: number | null
+          added_by?: string | null
+          added_by_name?: string | null
+          status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_list_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_list_entries_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_list_entries_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -637,6 +781,8 @@ export type Ticket = Tables<'tickets'>
 export type VipInquiry = Tables<'vip_inquiries'>
 export type FridayEventTemplate = Tables<'friday_event_template'>
 export type FridayTemplateTicketType = Tables<'friday_template_ticket_types'>
+export type CheckInLog = Tables<'check_in_logs'>
+export type GuestListEntry = Tables<'guest_list_entries'>
 
 // Event with relations
 export type EventWithTicketTypes = Event & {

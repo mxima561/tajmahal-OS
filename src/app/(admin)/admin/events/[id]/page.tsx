@@ -3,7 +3,7 @@ import { formatCurrency, formatDateTime, formatEventDate, formatEventTime } from
 import { EventWithTicketTypes } from '@/types/database'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, Edit, ShoppingCart, Ticket, Users } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, Edit, ShoppingCart, Ticket, Users, ScanLine, UserCheck } from 'lucide-react'
 
 async function getEvent(eventId: string) {
   const supabase = await createServerSupabaseClient()
@@ -38,11 +38,12 @@ async function getEventOrders(eventId: string) {
 export default async function EventDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   const [event, orders] = await Promise.all([
-    getEvent(params.id),
-    getEventOrders(params.id),
+    getEvent(id),
+    getEventOrders(id),
   ])
 
   if (!event) {
@@ -102,13 +103,29 @@ export default async function EventDetailPage({
             </div>
           </div>
         </div>
-        <Link
-          href={`/admin/events/${params.id}/edit`}
-          className="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-600 text-night-950 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
-        >
-          <Edit className="w-4 h-4" />
-          Edit Event
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/events/${id}/check-ins`}
+            className="inline-flex items-center gap-2 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/30 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <ScanLine className="w-4 h-4" />
+            Live Check-ins
+          </Link>
+          <Link
+            href={`/admin/events/${id}/guest-list`}
+            className="inline-flex items-center gap-2 bg-night-800 hover:bg-night-700 border border-night-600 text-white font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <UserCheck className="w-4 h-4" />
+            Guest List
+          </Link>
+          <Link
+            href={`/admin/events/${id}/edit`}
+            className="inline-flex items-center gap-2 bg-gold-500 hover:bg-gold-600 text-night-950 font-semibold px-4 py-2.5 rounded-lg transition-colors text-sm"
+          >
+            <Edit className="w-4 h-4" />
+            Edit Event
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
