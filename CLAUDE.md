@@ -4,17 +4,32 @@ Nightclub ticketing platform for Taj Mahal, Sharm El Sheikh, Egypt.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router) with TypeScript
-- **Styling**: Tailwind CSS with custom `night-*` and `gold-*` color palettes
+- **Framework**: Next.js 16 (App Router) with TypeScript
+- **Styling**: Tailwind CSS 4 with CSS-first config and custom `night-*` and `gold-*` color palettes
 - **Database**: Supabase (PostgreSQL) with Row Level Security
 - **Auth**: Supabase Auth (invite-only admin accounts)
-- **Payments**: Abstracted provider (mock now, CyberSource later) — switch via `PAYMENT_PROVIDER` env var
+- **Payments**: Abstracted provider (mock now, CyberSource WIP) — switch via `PAYMENT_PROVIDER` env var
 - **QR Codes**: HMAC-SHA256 signed payloads with `qrcode` npm package
 - **Email**: Resend (gracefully degrades if API key not set)
 - **Bot Protection**: Cloudflare Turnstile (optional, enforced if `TURNSTILE_SECRET_KEY` is set)
 - **Forms**: React Hook Form + Zod validation
-- **Animations**: Framer Motion
+- **Animations**: Motion (formerly Framer Motion) — import from `motion/react`
 - **Icons**: Lucide React
+- **Notifications**: Telegram Bot API for VIP inquiry alerts
+
+## Version Matrix
+
+| Package | Version |
+|---------|---------|
+| Next.js | 16.1.6 |
+| React | 19.2.4 |
+| Tailwind CSS | 4.1.18 |
+| ESLint | 9.39.2 |
+| Motion | 12.33.0 |
+| TypeScript | 5.x |
+| @supabase/supabase-js | 2.95.2 |
+| @supabase/ssr | 0.8.0 |
+| Zod | 4.3.6 |
 
 ## Commands
 
@@ -22,7 +37,7 @@ Nightclub ticketing platform for Taj Mahal, Sharm El Sheikh, Egypt.
 npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
 npm run start        # Production server
-npm run lint         # ESLint
+npm run lint         # ESLint (flat config)
 npx tsc --noEmit     # Type check only
 ```
 
@@ -52,12 +67,16 @@ src/
     (scanner)/scanner/     # Mobile QR scanner (auth-protected, standalone layout)
     api/
       checkout/            # POST — full checkout flow
-      vip/                 # POST — VIP inquiry submission
+      vip/                 # POST — VIP inquiry submission + Telegram notification
       scanner/             # POST — QR verify + check-in
       admin/
         invite/            # POST — create staff account (super_admin only)
         orders/[id]/cancel/# POST — cancel order + tickets
+        orders/delete/     # POST — delete orders (admin)
         staff/[id]/        # DELETE — remove staff member (super_admin only)
+      payment/             # CyberSource Secure Acceptance (WIP)
+        secure-acceptance/ # POST — generate SA form data
+        return/            # GET/POST — SA redirect handler
   components/
     admin/                 # AdminSidebar, AdminHeader
     public/                # Navbar, Footer, HeroSection, EventsGrid, TicketSelector,
@@ -72,10 +91,12 @@ src/
       types.ts             # PaymentProvider interface (processPayment, refundPayment)
       index.ts             # Factory: getPaymentProvider() switches on env var
       mock.ts              # MockPaymentProvider (1.5s delay, tok_decline = fail)
+      cybersource.ts       # CyberSourceProvider (WIP — Secure Acceptance flow)
     qr/
       index.ts             # generateQRPayload, validateQRCode, generateQRImage
     email/
       index.ts             # sendOrderConfirmation (Resend API, HTML template)
+    telegram.ts            # sendTelegramNotification (VIP inquiry alerts)
     utils/
       format.ts            # formatCurrency, formatEventDate/Time, generateOrderNumber,
                            # generateDisplayCode, generateSlug
@@ -91,6 +112,11 @@ src/
 - **Roles**: `super_admin`, `manager`, `staff`. Only super_admin can invite/delete staff.
 - **Route protection**: Middleware redirects unauthenticated users from `/admin/*` and `/scanner/*` to `/admin/login`. Authenticated users on `/admin/login` redirect to `/admin`.
 - **No customer accounts**: Customers are silently linked by email — no registration or login.
+
+### Next.js 16 Async APIs
+- All `params` and `searchParams` in pages, layouts, and route handlers are `Promise<>` types that must be `await`ed.
+- Example: `{ params }: { params: Promise<{ id: string }> }` then `const { id } = await params`
+- Server-side `cookies()` and `headers()` are also async and already awaited in this codebase.
 
 ### Checkout Flow (`POST /api/checkout`)
 1. Validate Turnstile token (if secret key configured)
@@ -111,22 +137,29 @@ src/
 
 ### Payment Abstraction
 ```
-getPaymentProvider() → MockPaymentProvider | CyberSourceProvider (not yet implemented)
+getPaymentProvider() → MockPaymentProvider | CyberSourceProvider
 ```
-- Factory switches on `PAYMENT_PROVIDER` env var
+- Factory switches on `PAYMENT_PROVIDER` env var (`mock` | `cybersource`)
 - Mock provider simulates 1.5s delay, rejects `tok_decline` token
-- Mock transaction IDs: `MOCK-{timestamp}-{random}`
+- CyberSource provider uses Secure Acceptance Hosted Checkout (redirect flow, WIP)
+- CyberSource refunds via REST API with HMAC-SHA256 signed requests
 
 ### Currency
 - **EGP only** (Egyptian law requirement)
 - Formatted via `Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' })`
 
 ### Styling Conventions
-- Custom Tailwind color scales: `gold-50` through `gold-900`, `night-50` through `night-950`
+- **Tailwind 4 CSS-first config**: Colors defined in `@theme` block in `globals.css` (no `tailwind.config.ts`)
+- Custom color scales: `gold-50` through `gold-900`, `night-50` through `night-950`
 - Dark nightclub aesthetic with gold accents
 - Utility class `.text-gold-gradient` for gradient text effects
 - Custom scrollbar styling for dark theme
-- Framer Motion for page transitions and mobile menu animations
+- Motion library (`motion/react`) for page transitions and mobile menu animations
+
+### ESLint Configuration
+- **ESLint 9 flat config** in `eslint.config.mjs`
+- Extends `eslint-config-next` (native flat config array export)
+- Custom rule: unused args prefixed with `_` are allowed (`argsIgnorePattern: "^_"`)
 
 ## Database Schema
 
@@ -170,10 +203,16 @@ RESEND_API_KEY                 # Email delivery; if unset, logs to console
 NEXT_PUBLIC_TURNSTILE_SITE_KEY # Cloudflare bot protection (client-side)
 TURNSTILE_SECRET_KEY           # Cloudflare bot protection (server validation)
 NEXT_PUBLIC_SITE_URL           # Site URL (default: http://localhost:3000)
-CYBERSOURCE_MERCHANT_ID        # Future: CyberSource payment gateway
-CYBERSOURCE_API_KEY_ID
-CYBERSOURCE_API_SHARED_SECRET
-CYBERSOURCE_FLEX_PUBLIC_KEY
+TELEGRAM_BOT_TOKEN             # Telegram bot for VIP inquiry notifications
+TELEGRAM_CHAT_ID               # Telegram group/chat for VIP alerts
+```
+
+### CyberSource (WIP)
+```
+CYBERSOURCE_MERCHANT_ID        # CyberSource merchant ID
+CYBERSOURCE_ACCESS_KEY         # Secure Acceptance access key
+CYBERSOURCE_SECRET_KEY         # Secure Acceptance signing secret
+CYBERSOURCE_PROFILE_ID         # Secure Acceptance profile ID
 CYBERSOURCE_ENVIRONMENT        # sandbox | production (default: sandbox)
 ```
 
@@ -182,8 +221,10 @@ CYBERSOURCE_ENVIRONMENT        # sandbox | production (default: sandbox)
 - **Path alias**: `@/*` maps to `./src/*`
 - **Server vs client Supabase**: Use `createServerSupabaseClient()` in Server Components/API routes; `createBrowserClient()` on the client. Use `createServiceRoleClient()` only in API routes that need to bypass RLS.
 - **API validation**: All API routes validate input with Zod schemas before processing.
-- **Error handling**: API routes return `{ error: string }` with appropriate HTTP status codes.
+- **Error handling**: API routes return `{ error: string }` with appropriate HTTP status codes. User-facing error messages are sanitized (no internal details leaked).
 - **Idempotency**: Checkout uses `idempotency_key` to prevent duplicate orders.
-- **ESLint**: Extends `next/core-web-vitals` + `next/typescript`. Unused args prefixed with `_` are allowed.
+- **ESLint**: Flat config (`eslint.config.mjs`). Unused args prefixed with `_` are allowed.
 - **TypeScript**: Strict mode enabled. Path resolution via bundler.
+- **Animations**: Import from `motion/react` (not `framer-motion`).
+- **Security headers**: Configured in `next.config.mjs` (X-Frame-Options, CSP, etc.)
 - **No tests**: Project has no test framework configured.
