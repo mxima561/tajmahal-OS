@@ -15,6 +15,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Tag,
+  Megaphone,
+  BarChart3,
+  Download,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -23,6 +27,9 @@ const navItems = [
   { href: '/admin/events', label: 'Events', icon: Calendar },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/admin/customers', label: 'Customers', icon: Users },
+  { href: '/admin/promoters', label: 'Promoters', icon: Megaphone },
+  { href: '/admin/promo-codes', label: 'Promo Codes', icon: Tag },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/vip', label: 'VIP Inquiries', icon: Crown },
   { href: '/admin/scanner', label: 'Scanner', icon: ScanLine },
   { href: '/admin/staff', label: 'Staff', icon: UserCog },

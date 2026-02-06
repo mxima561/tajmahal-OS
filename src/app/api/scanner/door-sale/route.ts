@@ -59,25 +59,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Event not available' }, { status: 400 })
     }
 
-    // Get ticket type and check availability
-    const { data: ticketType } = await serviceClient
-      .from('ticket_types')
-      .select('id, name, price, quantity_total, quantity_sold, event_id')
-      .eq('id', ticketTypeId)
-      .eq('event_id', eventId)
-      .single()
+    // Atomically reserve tickets using the same RPC as checkout
+    const { data: reserveResult, error: rpcError } = await serviceClient
+      .rpc('reserve_tickets', {
+        p_ticket_type_id: ticketTypeId,
+        p_event_id: eventId,
+        p_quantity: quantity,
+      })
 
-    if (!ticketType) {
-      return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
+    if (rpcError || !reserveResult?.success) {
+      return NextResponse.json(
+        { error: reserveResult?.error || 'Ticket type not found or sold out' },
+        { status: 400 }
+      )
     }
 
-    const available = ticketType.quantity_total - (ticketType.quantity_sold || 0)
-    if (available < quantity) {
-      return NextResponse.json({ error: `Only ${available} tickets available` }, { status: 400 })
-    }
-
-    // For comps, price is 0; otherwise use ticket price
-    const unitPrice = paymentMethod === 'comp' ? 0 : ticketType.price
+    // For comps, price is 0; otherwise use reserved ticket price
+    const unitPrice = paymentMethod === 'comp' ? 0 : reserveResult.price!
     const total = unitPrice * quantity
 
     // Upsert customer (use a door-sale email if none provided)
@@ -160,11 +158,7 @@ export async function POST(request: NextRequest) {
       total_price: total,
     })
 
-    // Update ticket quantity sold
-    await serviceClient
-      .from('ticket_types')
-      .update({ quantity_sold: (ticketType.quantity_sold || 0) + quantity })
-      .eq('id', ticketTypeId)
+    // quantity_sold already incremented atomically by reserve_tickets RPC
 
     // Create tickets (already checked in)
     const now = new Date().toISOString()

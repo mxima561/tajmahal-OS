@@ -23,6 +23,8 @@ const checkoutSchema = z.object({
   paymentToken: z.string().min(1),
   idempotencyKey: z.string().min(1),
   turnstileToken: z.string().optional(),
+  promoCodeId: z.string().uuid().optional(),
+  promoterId: z.string().uuid().optional(),
 })
 
 export async function POST(request: Request) {
@@ -49,7 +51,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { eventId, items, customer, paymentToken, idempotencyKey, turnstileToken } = parsed.data
+    const { eventId, items, customer, paymentToken, idempotencyKey, turnstileToken, promoCodeId, promoterId } = parsed.data
 
     // Verify Turnstile token if secret key is configured
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY
@@ -165,7 +167,36 @@ export async function POST(request: Request) {
       })
     }
 
-    const total = subtotal // No fees in MVP
+    // Apply promo code discount if provided (validated but NOT incremented until after payment)
+    let discountAmount = 0
+    let validatedPromo: { id: string; discount_type: string; discount_amount: number } | null = null
+    if (promoCodeId) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('id', promoCodeId)
+        .eq('is_active', true)
+        .single()
+
+      if (promo) {
+        // Re-validate: check event_id, dates, and usage limits
+        const now = new Date().toISOString()
+        const withinDates = (!promo.valid_from || now >= promo.valid_from) && (!promo.valid_until || now <= promo.valid_until)
+        const withinUsage = promo.max_uses === null || (promo.current_uses ?? 0) < promo.max_uses
+        const matchesEvent = !promo.event_id || promo.event_id === eventId
+
+        if (withinDates && withinUsage && matchesEvent) {
+          if (promo.discount_type === 'percentage') {
+            discountAmount = Math.round(subtotal * promo.discount_amount / 100)
+          } else {
+            discountAmount = Math.min(promo.discount_amount, subtotal)
+          }
+          validatedPromo = { id: promo.id, discount_type: promo.discount_type, discount_amount: promo.discount_amount }
+        }
+      }
+    }
+
+    const total = subtotal - discountAmount
 
     // Process payment
     const paymentProvider = getPaymentProvider()
@@ -252,6 +283,9 @@ export async function POST(request: Request) {
         payment_transaction_id: paymentResult.transactionId,
         idempotency_key: idempotencyKey,
         turnstile_verified: turnstileVerified,
+        promoter_id: promoterId || null,
+        promo_code_id: promoCodeId || null,
+        discount_amount: discountAmount,
       })
       .select('id')
       .single()
@@ -261,6 +295,21 @@ export async function POST(request: Request) {
         { error: 'Failed to create order' },
         { status: 500 }
       )
+    }
+
+    // Increment promo code usage AFTER successful payment and order creation
+    if (validatedPromo) {
+      const { data: latestPromo } = await supabase
+        .from('promo_codes')
+        .select('current_uses')
+        .eq('id', validatedPromo.id)
+        .single()
+      if (latestPromo) {
+        await supabase
+          .from('promo_codes')
+          .update({ current_uses: (latestPromo.current_uses || 0) + 1 })
+          .eq('id', validatedPromo.id)
+      }
     }
 
     // Create order items

@@ -223,6 +223,9 @@ export type Database = {
           total: number
           turnstile_verified: boolean | null
           updated_at: string | null
+          promoter_id: string | null
+          promo_code_id: string | null
+          discount_amount: number | null
         }
         Insert: {
           created_at?: string | null
@@ -243,6 +246,9 @@ export type Database = {
           total: number
           turnstile_verified?: boolean | null
           updated_at?: string | null
+          promoter_id?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
         }
         Update: {
           created_at?: string | null
@@ -263,6 +269,9 @@ export type Database = {
           total?: number
           turnstile_verified?: boolean | null
           updated_at?: string | null
+          promoter_id?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
         }
         Relationships: [
           {
@@ -728,6 +737,124 @@ export type Database = {
           },
         ]
       }
+      promoters: {
+        Row: {
+          id: string
+          name: string
+          email: string | null
+          phone: string | null
+          commission_rate: number | null
+          status: string
+          total_sales: number | null
+          total_revenue: number | null
+          total_commission: number | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          commission_rate?: number | null
+          status?: string
+          total_sales?: number | null
+          total_revenue?: number | null
+          total_commission?: number | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          commission_rate?: number | null
+          status?: string
+          total_sales?: number | null
+          total_revenue?: number | null
+          total_commission?: number | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          id: string
+          code: string
+          event_id: string | null
+          promoter_id: string | null
+          discount_type: string
+          discount_amount: number
+          max_uses: number | null
+          current_uses: number | null
+          valid_from: string | null
+          valid_until: string | null
+          is_active: boolean | null
+          created_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          code: string
+          event_id?: string | null
+          promoter_id?: string | null
+          discount_type: string
+          discount_amount: number
+          max_uses?: number | null
+          current_uses?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          is_active?: boolean | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          code?: string
+          event_id?: string | null
+          promoter_id?: string | null
+          discount_type?: string
+          discount_amount?: number
+          max_uses?: number | null
+          current_uses?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          is_active?: boolean | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -783,6 +910,8 @@ export type FridayEventTemplate = Tables<'friday_event_template'>
 export type FridayTemplateTicketType = Tables<'friday_template_ticket_types'>
 export type CheckInLog = Tables<'check_in_logs'>
 export type GuestListEntry = Tables<'guest_list_entries'>
+export type Promoter = Tables<'promoters'>
+export type PromoCode = Tables<'promo_codes'>
 
 // Event with relations
 export type EventWithTicketTypes = Event & {

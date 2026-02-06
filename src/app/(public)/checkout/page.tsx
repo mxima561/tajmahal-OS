@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { CreditCard, ShoppingBag, User, Mail, Phone, Loader2, Lock, ExternalLink } from 'lucide-react'
+import { CreditCard, ShoppingBag, User, Mail, Phone, Loader2, Lock, ExternalLink, Tag } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
@@ -46,6 +46,10 @@ function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [paymentProvider, setPaymentProvider] = useState<'mock' | 'cybersource' | null>(null)
+  const [promoCode, setPromoCode] = useState('')
+  const [promoDiscount, setPromoDiscount] = useState<{ discountType: string; discountAmount: number; promoCodeId: string; promoterId: string | null } | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [promoError, setPromoError] = useState('')
 
   // CyberSource redirect form state
   const [csFormAction, setCsFormAction] = useState('')
@@ -90,7 +94,12 @@ function CheckoutPage() {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   }, [items])
 
-  const total = subtotal // No fees in MVP
+  const discountValue = promoDiscount
+    ? promoDiscount.discountType === 'percentage'
+      ? Math.round(subtotal * promoDiscount.discountAmount / 100)
+      : Math.min(promoDiscount.discountAmount, subtotal)
+    : 0
+  const total = subtotal - discountValue
 
   // Auto-submit CyberSource form when params are set
   useEffect(() => {
@@ -170,6 +179,8 @@ function CheckoutPage() {
             paymentToken,
             idempotencyKey,
             turnstileToken: turnstileToken || undefined,
+            promoCodeId: promoDiscount?.promoCodeId || undefined,
+            promoterId: promoDiscount?.promoterId || undefined,
           }),
         })
 
@@ -184,6 +195,31 @@ function CheckoutPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setIsProcessing(false)
+    }
+  }
+
+  async function handleApplyPromo() {
+    if (!promoCode.trim()) return
+    setPromoLoading(true)
+    setPromoError('')
+    setPromoDiscount(null)
+    try {
+      const res = await fetch('/api/checkout/validate-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim(), eventId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPromoError(data.error || 'Invalid promo code')
+      } else {
+        setPromoDiscount(data)
+        toast.success('Promo code applied!')
+      }
+    } catch {
+      setPromoError('Failed to validate promo code')
+    } finally {
+      setPromoLoading(false)
     }
   }
 
@@ -259,6 +295,46 @@ function CheckoutPage() {
                   ))}
                 </div>
 
+                {/* Promo Code */}
+                <div>
+                  <label className="block text-sm text-night-400 mb-1.5">Promo Code</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      placeholder="Enter code"
+                      disabled={isProcessing || !!promoDiscount}
+                      className="flex-1 bg-night-950 border border-night-700 rounded-lg py-2 px-3 text-white text-sm placeholder:text-night-600 focus:outline-hidden focus:border-gold-500/50 disabled:opacity-50"
+                    />
+                    {promoDiscount ? (
+                      <button
+                        type="button"
+                        onClick={() => { setPromoDiscount(null); setPromoCode(''); setPromoError('') }}
+                        className="px-3 py-2 bg-red-500/10 text-red-400 text-sm rounded-lg hover:bg-red-500/20 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={promoLoading || !promoCode.trim()}
+                        className="px-3 py-2 bg-gold-500/10 text-gold-400 text-sm rounded-lg hover:bg-gold-500/20 transition-colors disabled:opacity-50"
+                      >
+                        {promoLoading ? '...' : 'Apply'}
+                      </button>
+                    )}
+                  </div>
+                  {promoError && <p className="text-red-400 text-xs mt-1">{promoError}</p>}
+                  {promoDiscount && (
+                    <p className="text-green-400 text-xs mt-1 flex items-center gap-1">
+                      <Tag className="w-3 h-3" />
+                      {promoDiscount.discountType === 'percentage' ? `${promoDiscount.discountAmount}% off` : `EGP ${promoDiscount.discountAmount} off`}
+                    </p>
+                  )}
+                </div>
+
                 <div className="h-px bg-night-800" />
 
                 {/* Subtotal */}
@@ -266,6 +342,13 @@ function CheckoutPage() {
                   <span className="text-night-400">Subtotal</span>
                   <span className="text-white tabular-nums">{formatCurrency(subtotal)}</span>
                 </div>
+
+                {discountValue > 0 && (
+                  <div className="flex items-center justify-between text-green-400">
+                    <span className="text-sm">Discount</span>
+                    <span className="tabular-nums">-{formatCurrency(discountValue)}</span>
+                  </div>
+                )}
 
                 {/* Total */}
                 <div className="flex items-center justify-between pt-2 border-t border-night-700/50">
