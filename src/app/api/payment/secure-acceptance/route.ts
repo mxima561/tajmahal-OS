@@ -19,16 +19,9 @@ function signSecureAcceptanceData(params: Record<string, string>, secretKey: str
     .map(field => `${field}=${params[field]}`)
     .join(',')
 
-  // Decode secret key - support hex (common for Secure Acceptance) and base64
-  let decodedSecret: Buffer
-  if (/^[0-9a-fA-F]+$/.test(secretKey) && secretKey.length > 50) {
-    decodedSecret = Buffer.from(secretKey, 'hex')
-  } else {
-    decodedSecret = Buffer.from(secretKey, 'base64')
-  }
-
+  // Secure Acceptance uses the secret key as a raw UTF-8 string
   const signature = crypto
-    .createHmac('sha256', decodedSecret)
+    .createHmac('sha256', secretKey)
     .update(dataToSign)
     .digest('base64')
 

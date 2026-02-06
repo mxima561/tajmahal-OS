@@ -12,16 +12,9 @@ function verifySignature(params: Record<string, string>, signature: string, secr
     .map(field => `${field}=${params[field]}`)
     .join(',')
 
-  // Decode secret key (hex format for Secure Acceptance)
-  let decodedSecret: Buffer
-  if (/^[0-9a-fA-F]+$/.test(secretKey) && secretKey.length > 50) {
-    decodedSecret = Buffer.from(secretKey, 'hex')
-  } else {
-    decodedSecret = Buffer.from(secretKey, 'base64')
-  }
-
+  // Secure Acceptance uses the secret key as a raw UTF-8 string
   const expectedSignature = crypto
-    .createHmac('sha256', decodedSecret)
+    .createHmac('sha256', secretKey)
     .update(dataToSign)
     .digest('base64')
 
