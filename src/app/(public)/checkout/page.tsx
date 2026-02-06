@@ -231,7 +231,7 @@ function CheckoutPage() {
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Enter your full name"
                       disabled={isProcessing}
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-none focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
+                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-hidden focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -250,7 +250,7 @@ function CheckoutPage() {
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       placeholder="you@example.com"
                       disabled={isProcessing}
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-none focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
+                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-hidden focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
                     />
                   </div>
                   <p className="text-night-500 text-xs mt-1">Your tickets will be sent to this email.</p>
@@ -270,7 +270,7 @@ function CheckoutPage() {
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="+20 xxx xxx xxxx"
                       disabled={isProcessing}
-                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-none focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
+                      className="w-full bg-night-950 border border-night-700 rounded-lg py-3 pl-10 pr-4 text-white placeholder:text-night-600 focus:outline-hidden focus:border-gold-500/50 focus:ring-1 focus:ring-gold-500/20 transition-colors disabled:opacity-50"
                     />
                   </div>
                 </div>

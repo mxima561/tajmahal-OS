@@ -25,9 +25,10 @@ async function getInquiry(id: string) {
 export default async function VipInquiryDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const inquiry = await getInquiry(params.id)
+  const { id } = await params
+  const inquiry = await getInquiry(id)
 
   if (!inquiry) {
     notFound()

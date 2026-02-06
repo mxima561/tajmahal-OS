@@ -16,7 +16,7 @@ const geistMono = localFont({
 });
 const oswald = Oswald({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-oswald",
   weight: ["400", "500", "600", "700"],
   display: "swap",
 });

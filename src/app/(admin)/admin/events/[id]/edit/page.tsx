@@ -393,7 +393,7 @@ export default function EditEventPage() {
                 type="text"
                 placeholder="e.g. Friday Night Live"
                 disabled={isCancelled}
-                className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
               />
               {errors.name && (
                 <p className="text-red-400 text-xs mt-1">{errors.name.message}</p>
@@ -410,7 +410,7 @@ export default function EditEventPage() {
                 rows={4}
                 placeholder="Describe the event..."
                 disabled={isCancelled}
-                className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm resize-none disabled:opacity-50"
+                className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm resize-none disabled:opacity-50"
               />
             </div>
 
@@ -485,7 +485,7 @@ export default function EditEventPage() {
                   {...register('start_time')}
                   type="datetime-local"
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm [color-scheme:dark] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm scheme-dark disabled:opacity-50"
                 />
                 {errors.start_time && (
                   <p className="text-red-400 text-xs mt-1">{errors.start_time.message}</p>
@@ -499,7 +499,7 @@ export default function EditEventPage() {
                   {...register('end_time')}
                   type="datetime-local"
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm [color-scheme:dark] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm scheme-dark disabled:opacity-50"
                 />
               </div>
               <div>
@@ -510,7 +510,7 @@ export default function EditEventPage() {
                   {...register('doors_open')}
                   type="datetime-local"
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm [color-scheme:dark] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm scheme-dark disabled:opacity-50"
                 />
               </div>
             </div>
@@ -524,7 +524,7 @@ export default function EditEventPage() {
                 <select
                   {...register('status')}
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                 >
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
@@ -536,7 +536,7 @@ export default function EditEventPage() {
                   type="checkbox"
                   id="is_featured"
                   disabled={isCancelled}
-                  className="w-4 h-4 rounded border-night-600 bg-night-800 text-gold-500 focus:ring-gold-500/50 focus:ring-offset-0"
+                  className="w-4 h-4 rounded-sm border-night-600 bg-night-800 text-gold-500 focus:ring-gold-500/50 focus:ring-offset-0"
                 />
                 <label htmlFor="is_featured" className="text-sm font-medium text-night-200">
                   Featured Event
@@ -554,7 +554,7 @@ export default function EditEventPage() {
                   {...register('sale_start')}
                   type="datetime-local"
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm [color-scheme:dark] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm scheme-dark disabled:opacity-50"
                 />
               </div>
               <div>
@@ -565,7 +565,7 @@ export default function EditEventPage() {
                   {...register('sale_end')}
                   type="datetime-local"
                   disabled={isCancelled}
-                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm [color-scheme:dark] disabled:opacity-50"
+                  className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm scheme-dark disabled:opacity-50"
                 />
               </div>
             </div>
@@ -636,7 +636,7 @@ export default function EditEventPage() {
                       type="text"
                       placeholder="e.g. VIP"
                       disabled={isCancelled}
-                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                     />
                     {errors.ticket_types?.[index]?.name && (
                       <p className="text-red-400 text-xs mt-1">
@@ -655,7 +655,7 @@ export default function EditEventPage() {
                       step="0.01"
                       placeholder="0"
                       disabled={isCancelled}
-                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                     />
                     {errors.ticket_types?.[index]?.price && (
                       <p className="text-red-400 text-xs mt-1">
@@ -673,7 +673,7 @@ export default function EditEventPage() {
                       min="1"
                       placeholder="100"
                       disabled={isCancelled}
-                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                     />
                     {errors.ticket_types?.[index]?.quantity_total && (
                       <p className="text-red-400 text-xs mt-1">
@@ -691,7 +691,7 @@ export default function EditEventPage() {
                       min="1"
                       placeholder="5"
                       disabled={isCancelled}
-                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                     />
                   </div>
                 </div>
@@ -705,7 +705,7 @@ export default function EditEventPage() {
                     type="text"
                     placeholder="Optional description for this ticket type"
                     disabled={isCancelled}
-                    className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
+                    className="w-full px-3 py-2 bg-night-900 border border-night-600 rounded-lg text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 text-sm disabled:opacity-50"
                   />
                 </div>
               </div>

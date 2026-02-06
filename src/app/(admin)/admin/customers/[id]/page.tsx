@@ -40,9 +40,10 @@ async function getCustomerOrders(customerId: string) {
 export default async function AdminCustomerDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const customer = await getCustomer(params.id)
+  const { id } = await params
+  const customer = await getCustomer(id)
 
   if (!customer) {
     notFound()

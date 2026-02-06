@@ -240,7 +240,7 @@ export default function MobileScannerPage() {
   return (
     <div className="flex flex-col h-dvh overflow-hidden">
       {/* Top Bar */}
-      <div className="flex-shrink-0 px-4 pt-4 pb-3 bg-night-900/80 backdrop-blur-sm border-b border-night-800">
+      <div className="shrink-0 px-4 pt-4 pb-3 bg-night-900/80 backdrop-blur-xs border-b border-night-800">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-gold-400 tracking-wide">
             Taj Mahal Scanner
@@ -256,7 +256,7 @@ export default function MobileScannerPage() {
               setSelectedEventId(e.target.value)
               resetScanner()
             }}
-            className="w-full bg-night-800 border border-night-600 rounded-lg px-3 py-2.5 text-sm text-white appearance-none focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+            className="w-full bg-night-800 border border-night-600 rounded-lg px-3 py-2.5 text-sm text-white appearance-none focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
           >
             {events.length === 0 && (
               <option value="">No published events</option>
@@ -295,7 +295,7 @@ export default function MobileScannerPage() {
             {scanResult && !loading && !showSuccess && scanResult.result === 'valid' && scanResult.ticket && (
               <div className="bg-green-500/10 border-2 border-green-500 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center gap-3">
-                  <CheckCircle className="w-10 h-10 text-green-400 flex-shrink-0" />
+                  <CheckCircle className="w-10 h-10 text-green-400 shrink-0" />
                   <div>
                     <p className="text-xl font-bold text-green-400">Valid Ticket</p>
                     <p className="text-sm text-green-300/70">{scanResult.ticket.display_code}</p>
@@ -342,7 +342,7 @@ export default function MobileScannerPage() {
             {scanResult && !loading && !showSuccess && scanResult.result === 'already_used' && (
               <div className="bg-amber-500/10 border-2 border-amber-500 rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-10 h-10 text-amber-400 flex-shrink-0" />
+                  <AlertTriangle className="w-10 h-10 text-amber-400 shrink-0" />
                   <div>
                     <p className="text-xl font-bold text-amber-400">Already Checked In</p>
                     {scanResult.ticket?.checked_in_at && (
@@ -378,7 +378,7 @@ export default function MobileScannerPage() {
             {scanResult && !loading && !showSuccess && scanResult.result === 'invalid' && (
               <div className="bg-red-500/10 border-2 border-red-500 rounded-2xl p-5 space-y-3">
                 <div className="flex items-center gap-3">
-                  <XCircle className="w-10 h-10 text-red-400 flex-shrink-0" />
+                  <XCircle className="w-10 h-10 text-red-400 shrink-0" />
                   <div>
                     <p className="text-xl font-bold text-red-400">Invalid</p>
                     <p className="text-sm text-red-300/70">
@@ -463,7 +463,7 @@ export default function MobileScannerPage() {
                   value={manualCode}
                   onChange={(e) => setManualCode(e.target.value)}
                   placeholder="TM-XXXX or scan data"
-                  className="flex-1 bg-night-800 border border-night-600 rounded-lg px-3 py-3 text-white text-sm placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 uppercase tracking-wider"
+                  className="flex-1 bg-night-800 border border-night-600 rounded-lg px-3 py-3 text-white text-sm placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 uppercase tracking-wider"
                   autoComplete="off"
                 />
                 <button

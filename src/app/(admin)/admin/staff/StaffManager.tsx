@@ -207,7 +207,7 @@ function InviteForm({
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="Full name"
-              className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+              className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
             />
           </div>
           <div>
@@ -220,7 +220,7 @@ function InviteForm({
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="email@example.com"
-              className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+              className="w-full px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
             />
           </div>
         </div>
@@ -232,7 +232,7 @@ function InviteForm({
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+            className="px-4 py-2.5 bg-night-800 border border-night-600 rounded-lg text-sm text-white focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
           >
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>

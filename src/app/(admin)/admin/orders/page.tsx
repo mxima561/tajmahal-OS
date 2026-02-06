@@ -54,12 +54,13 @@ async function getEvents() {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: { event?: string; status?: string; q?: string }
+  searchParams: Promise<{ event?: string; status?: string; q?: string }>
 }) {
-  const [orders, events] = await Promise.all([getOrders(searchParams), getEvents()])
-  const activeStatus = searchParams.status || ''
-  const activeEvent = searchParams.event || ''
-  const searchQuery = searchParams.q || ''
+  const resolvedSearchParams = await searchParams
+  const [orders, events] = await Promise.all([getOrders(resolvedSearchParams), getEvents()])
+  const activeStatus = resolvedSearchParams.status || ''
+  const activeEvent = resolvedSearchParams.event || ''
+  const searchQuery = resolvedSearchParams.q || ''
 
   function buildUrl(overrides: Record<string, string>) {
     const params = new URLSearchParams()
@@ -131,7 +132,7 @@ export default async function AdminOrdersPage({
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search orders..."
-                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
               />
             </form>
           </div>

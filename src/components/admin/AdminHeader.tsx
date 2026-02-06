@@ -25,7 +25,7 @@ export default function AdminHeader() {
   }, [supabase])
 
   return (
-    <header className="h-14 border-b border-night-700 bg-night-900/50 backdrop-blur-sm flex items-center justify-end px-6">
+    <header className="h-14 border-b border-night-700 bg-night-900/50 backdrop-blur-xs flex items-center justify-end px-6">
       {admin && (
         <div className="flex items-center gap-3">
           <div className="text-right">

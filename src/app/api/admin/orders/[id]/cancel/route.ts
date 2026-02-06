@@ -4,8 +4,9 @@ import { isValidUUID } from '@/lib/utils/validation'
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const supabase = await createServerSupabaseClient()
 
   // Verify requester is authenticated admin
@@ -25,7 +26,7 @@ export async function POST(
   }
 
   // Validate UUID format
-  if (!isValidUUID(params.id)) {
+  if (!isValidUUID(id)) {
     return NextResponse.json({ error: 'Invalid order ID format' }, { status: 400 })
   }
 
@@ -33,7 +34,7 @@ export async function POST(
   const { data: order, error: orderError } = await supabase
     .from('orders')
     .select('id, status')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (orderError || !order) {
@@ -48,7 +49,7 @@ export async function POST(
   const { error: updateOrderError } = await supabase
     .from('orders')
     .update({ status: 'cancelled', payment_status: 'refunded', updated_at: new Date().toISOString() })
-    .eq('id', params.id)
+    .eq('id', id)
 
   if (updateOrderError) {
     console.error('Error cancelling order:', updateOrderError)
@@ -59,7 +60,7 @@ export async function POST(
   const { error: updateTicketsError } = await supabase
     .from('tickets')
     .update({ status: 'cancelled' })
-    .eq('order_id', params.id)
+    .eq('order_id', id)
 
   if (updateTicketsError) {
     console.error('Error cancelling tickets:', updateTicketsError)

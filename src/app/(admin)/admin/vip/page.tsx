@@ -48,9 +48,10 @@ function StatusBadge({ status }: { status: string }) {
 export default async function AdminVipPage({
   searchParams,
 }: {
-  searchParams: { status?: string }
+  searchParams: Promise<{ status?: string }>
 }) {
-  const activeStatus = searchParams.status || 'all'
+  const resolvedSearchParams = await searchParams
+  const activeStatus = resolvedSearchParams.status || 'all'
   const inquiries = await getVipInquiries(activeStatus)
 
   const statusFilters = [

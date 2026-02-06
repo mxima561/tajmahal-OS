@@ -152,7 +152,7 @@ function ConfirmationPage() {
         {/* Event & Order Summary */}
         <div className="rounded-xl border border-night-700 bg-night-900 p-6 mb-8">
           <div className="flex items-center gap-3 mb-3">
-            <Calendar className="h-5 w-5 text-gold-500 flex-shrink-0" />
+            <Calendar className="h-5 w-5 text-gold-500 shrink-0" />
             <div>
               <p className="text-white font-semibold">{order.events.name}</p>
               <p className="text-night-300 text-sm">

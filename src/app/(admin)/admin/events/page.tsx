@@ -53,12 +53,13 @@ function getRevenue(event: EventWithTicketTypes): number {
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; q?: string }
+  searchParams: Promise<{ tab?: string; q?: string }>
 }) {
+  const resolvedSearchParams = await searchParams
   const events = await getEvents()
   const now = new Date()
-  const activeTab = searchParams.tab || 'all'
-  const searchQuery = searchParams.q || ''
+  const activeTab = resolvedSearchParams.tab || 'all'
+  const searchQuery = resolvedSearchParams.q || ''
 
   // Filter events
   let filteredEvents = events
@@ -138,7 +139,7 @@ export default async function AdminEventsPage({
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search events..."
-                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
               />
             </form>
           </div>

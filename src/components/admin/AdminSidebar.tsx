@@ -81,7 +81,7 @@ export default function AdminSidebar() {
               }`}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-gold-400' : ''}`} />
+              <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-gold-400' : ''}`} />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           )
@@ -95,7 +95,7 @@ export default function AdminSidebar() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-night-300 hover:bg-red-500/10 hover:text-red-400 transition-colors w-full"
           title={collapsed ? 'Sign out' : undefined}
         >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
