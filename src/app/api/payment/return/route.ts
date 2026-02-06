@@ -133,16 +133,16 @@ export async function POST(request: Request) {
     const ticketTypeDetails: { id: string; name: string; price: number; quantity: number }[] = []
 
     for (const item of items) {
-      const { data: result, error: rpcError } = await supabase
-        .rpc('reserve_tickets', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: result, error: rpcError } = await (supabase.rpc as any)('reserve_tickets', {
           p_ticket_type_id: item.ticketTypeId,
           p_event_id: eventId,
           p_quantity: item.quantity,
-        })
+        }) as { data: any; error: any }
 
       if (rpcError) {
         for (const tt of ticketTypeDetails) {
-          await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+          await (supabase.rpc as any)('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
         }
         console.error('[PaymentReturn] Reserve failed:', rpcError)
         return NextResponse.redirect(`${siteUrl}/checkout?error=tickets_unavailable`)
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
       if (!result.success) {
         for (const tt of ticketTypeDetails) {
-          await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+          await (supabase.rpc as any)('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
         }
         console.error('[PaymentReturn] Reserve failed:', result.error)
         return NextResponse.redirect(`${siteUrl}/checkout?error=${encodeURIComponent(result.error || 'tickets_unavailable')}`)
@@ -206,7 +206,7 @@ export async function POST(request: Request) {
       if (custError || !newCustomer) {
         console.error('[PaymentReturn] Customer creation failed:', custError)
         for (const tt of ticketTypeDetails) {
-          await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+          await (supabase.rpc as any)('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
         }
         return NextResponse.redirect(`${siteUrl}/checkout?error=order_failed`)
       }
@@ -240,7 +240,7 @@ export async function POST(request: Request) {
     if (orderError || !order) {
       console.error('[PaymentReturn] Order creation failed:', orderError)
       for (const tt of ticketTypeDetails) {
-        await supabase.rpc('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
+        await (supabase.rpc as any)('release_tickets', { p_ticket_type_id: tt.id, p_quantity: tt.quantity })
       }
       return NextResponse.redirect(`${siteUrl}/checkout?error=order_failed`)
     }
