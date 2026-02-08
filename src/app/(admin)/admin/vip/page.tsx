@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatDateTime } from '@/lib/utils/format'
 import { VipInquiry } from '@/types/database'
 import { Crown, Filter } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 
 async function getVipInquiries(status?: string) {

@@ -7,6 +7,11 @@ export function getPaymentProvider(): PaymentProvider {
 
   switch (provider) {
     case 'mock':
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          '[FATAL] Mock payment provider cannot be used in production. Set PAYMENT_PROVIDER to a real provider (e.g. "cybersource").'
+        )
+      }
       return new MockPaymentProvider()
     case 'cybersource':
       return new CyberSourceProvider()

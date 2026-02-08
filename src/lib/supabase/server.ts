@@ -28,10 +28,16 @@ export async function createServerSupabaseClient() {
   )
 }
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+let _serviceClient: SupabaseClient<Database> | null = null
+
 export async function createServiceRoleClient() {
+  if (_serviceClient) return _serviceClient
   const { createClient } = await import('@supabase/supabase-js')
-  return createClient<Database>(
+  _serviceClient = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+  return _serviceClient
 }

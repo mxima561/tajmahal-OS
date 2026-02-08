@@ -50,6 +50,9 @@ export async function POST(request: Request) {
   }
 
   // Delete ticket_types first (FK dependency)
+  // NOTE: Supabase does not support multi-table transactions. If the events delete
+  // below fails after ticket_types are already deleted, we have an atomicity gap.
+  // A critical error is logged so operators can investigate and restore data.
   const { error: ttError } = await supabase
     .from('ticket_types')
     .delete()
@@ -67,7 +70,7 @@ export async function POST(request: Request) {
     .in('id', eventIds)
 
   if (eventError) {
-    console.error('Error deleting events:', eventError)
+    console.error('[CRITICAL] Partial cascade delete - ticket_types deleted but events failed', { eventIds, error: eventError })
     return NextResponse.json({ error: 'Failed to delete events' }, { status: 500 })
   }
 

@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import {
   TrendingUp,
   DollarSign,
@@ -14,11 +16,12 @@ async function getAnalyticsData() {
   const now = new Date()
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  // 1. Total revenue from paid orders
+  // 1. Total revenue from paid orders (with safety limit)
   const { data: paidOrders } = await supabase
     .from('orders')
     .select('id, total, event_id, payment_provider, promoter_id, created_at')
     .eq('payment_status', 'paid')
+    .limit(10000)
 
   const orders = paidOrders || []
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0)

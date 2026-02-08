@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /scanner
+Disallow: /scanner/
+Disallow: /api/
+Disallow: /checkout
+Disallow: /confirmation
+
+Sitemap: https://tajmahalsharm.com/sitemap.xml

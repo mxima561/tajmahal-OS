@@ -1,7 +1,11 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import type { EventWithTicketTypes } from '@/types/database'
+
+export const revalidate = 30
 import { formatEventDate, formatEventTime, formatCurrency } from '@/lib/utils/format'
 import { Calendar, Clock, MapPin, Ticket } from 'lucide-react'
 import TicketSelector from '@/components/public/TicketSelector'

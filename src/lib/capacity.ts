@@ -24,24 +24,23 @@ export async function getEventCapacity(eventId: string): Promise<CapacityInfo> {
   const venueCapacity = event?.venue_capacity ?? null
   const ticketCapacity = event?.total_capacity ?? 0
 
-  // Count checked-in tickets for this event via check_in_logs
-  // Each successful check-in creates a 'valid' log entry
-  const { count: ticketCheckIns } = await supabase
-    .from('check_in_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('event_id', eventId)
-    .eq('scan_result', 'valid')
+  // Run the two independent count queries in parallel
+  const [ticketCheckInsResult, checkedInGuestsResult] = await Promise.all([
+    supabase
+      .from('check_in_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('scan_result', 'valid'),
+    supabase
+      .from('guest_list_entries')
+      .select('id, plus_count')
+      .eq('event_id', eventId)
+      .eq('status', 'checked_in'),
+  ])
 
-  const ticketCount = ticketCheckIns ?? 0
+  const ticketCount = ticketCheckInsResult.count ?? 0
 
-  // Count checked-in guests with their plus counts
-  const { data: checkedInGuests } = await supabase
-    .from('guest_list_entries')
-    .select('id, plus_count')
-    .eq('event_id', eventId)
-    .eq('status', 'checked_in')
-
-  const guestCount = checkedInGuests?.reduce(
+  const guestCount = checkedInGuestsResult.data?.reduce(
     (sum, g) => sum + 1 + (g.plus_count ?? 0),
     0
   ) ?? 0

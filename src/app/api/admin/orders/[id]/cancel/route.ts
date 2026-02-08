@@ -45,10 +45,43 @@ export async function POST(
     return NextResponse.json({ error: 'Order is already cancelled' }, { status: 400 })
   }
 
-  // Update order status
+  // Fetch order_items to release ticket capacity
+  const { data: orderItems, error: fetchItemsError } = await supabase
+    .from('order_items')
+    .select('ticket_type_id, quantity')
+    .eq('order_id', id)
+
+  if (fetchItemsError) {
+    console.error('Error fetching order items for capacity release:', fetchItemsError)
+    return NextResponse.json({ error: 'Failed to prepare cancellation' }, { status: 500 })
+  }
+
+  // Release capacity by decrementing quantity_sold for each ticket type
+  if (orderItems && orderItems.length > 0) {
+    for (const item of orderItems) {
+      const { data: tt } = await supabase
+        .from('ticket_types')
+        .select('quantity_sold')
+        .eq('id', item.ticket_type_id)
+        .single()
+
+      if (tt) {
+        const { error: capacityError } = await supabase
+          .from('ticket_types')
+          .update({ quantity_sold: Math.max(0, (tt.quantity_sold ?? 0) - item.quantity) })
+          .eq('id', item.ticket_type_id)
+
+        if (capacityError) {
+          console.error('[CRITICAL] Failed to release capacity for ticket_type', { ticketTypeId: item.ticket_type_id, quantity: item.quantity, error: capacityError })
+        }
+      }
+    }
+  }
+
+  // Update order status — use 'pending_refund' since the refund has not been processed yet
   const { error: updateOrderError } = await supabase
     .from('orders')
-    .update({ status: 'cancelled', payment_status: 'refunded', updated_at: new Date().toISOString() })
+    .update({ status: 'cancelled', payment_status: 'pending_refund', updated_at: new Date().toISOString() })
     .eq('id', id)
 
   if (updateOrderError) {

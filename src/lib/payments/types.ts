@@ -18,5 +18,5 @@ export interface CheckoutSession {
 export interface PaymentProvider {
   getCheckoutSession(): Promise<CheckoutSession>
   processPayment(token: string, amount: number, currency: string, orderId: string): Promise<PaymentResult>
-  refundPayment(transactionId: string, amount: number): Promise<RefundResult>
+  refundPayment(transactionId: string, amount: number, currency?: string): Promise<RefundResult>
 }

@@ -4,26 +4,17 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { generateQRPayload } from '@/lib/qr'
 import { generateOrderNumber, generateDisplayCode, formatEventDate } from '@/lib/utils/format'
 import { sendOrderConfirmation } from '@/lib/email'
+import { checkoutSessionStore } from '@/lib/payments/checkout-session-store'
+import { generateConfirmationToken } from '@/lib/confirmation-token'
+import { rateLimit } from '@/lib/rate-limit'
 
-// Verify HMAC-SHA256 signature from CyberSource
 function verifySignature(params: Record<string, string>, signature: string, secretKey: string): boolean {
-  const signedFieldNames = params.signed_field_names?.split(',') || []
-  const dataToSign = signedFieldNames
-    .map(field => `${field}=${params[field]}`)
-    .join(',')
+  const fields = params.signed_field_names?.split(',') || []
+  const dataToSign = fields.map(f => `${f}=${params[f]}`).join(',')
+  const expected = crypto.createHmac('sha256', secretKey).update(dataToSign).digest('base64')
 
-  // Secure Acceptance uses the secret key as a raw UTF-8 string
-  const expectedSignature = crypto
-    .createHmac('sha256', secretKey)
-    .update(dataToSign)
-    .digest('base64')
-
-  // Timing-safe comparison
   try {
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
   } catch {
     return false
   }
@@ -33,17 +24,23 @@ export async function POST(request: Request) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
   try {
-    // Parse form data from CyberSource POST
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+
+    const { limited } = await rateLimit(`payment-return:${ip}`, 15, 60000)
+    if (limited) {
+      return NextResponse.redirect(`${siteUrl}/checkout?error=rate_limited`)
+    }
+
     const formData = await request.formData()
     const params: Record<string, string> = {}
-
     formData.forEach((value, key) => {
       params[key] = value.toString()
     })
 
-    console.log('[PaymentReturn] Received params:', Object.keys(params).join(', '))
+    console.log('[PaymentReturn] Decision:', params.decision, 'Reason:', params.reason_code)
 
-    // Verify signature
     const secretKey = process.env.CYBERSOURCE_SECRET_KEY
     if (!secretKey) {
       console.error('[PaymentReturn] Missing secret key')
@@ -56,15 +53,11 @@ export async function POST(request: Request) {
       return NextResponse.redirect(`${siteUrl}/checkout?error=signature`)
     }
 
-    // Check payment decision
     const decision = params.decision
     const reasonCode = params.reason_code
     const transactionId = params.transaction_id || params.request_id
 
-    console.log('[PaymentReturn] Decision:', decision, 'Reason:', reasonCode, 'TxID:', transactionId)
-
     if (decision !== 'ACCEPT') {
-      // Payment was declined or errored
       const errorMsg = params.message || getDeclineMessage(decision, reasonCode)
       console.error('[PaymentReturn] Payment failed:', decision, reasonCode, errorMsg)
       return NextResponse.redirect(
@@ -72,26 +65,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // Extract order data from merchant_defined_data1
-    const orderDataBase64 = params.merchant_defined_data1
-    if (!orderDataBase64) {
-      console.error('[PaymentReturn] Missing order data')
+    const referenceNumber = params.req_reference_number
+    if (!referenceNumber) {
+      console.error('[PaymentReturn] Missing reference_number in response')
       return NextResponse.redirect(`${siteUrl}/checkout?error=missing_data`)
     }
 
-    let orderData: {
-      eventId: string
-      items: Array<{ ticketTypeId: string; quantity: number }>
-      customer: { name: string; email: string; phone?: string }
-      idempotencyKey: string
+    const orderData = checkoutSessionStore.get(referenceNumber)
+    if (!orderData) {
+      console.error('[PaymentReturn] No checkout session found for:', referenceNumber)
+      return NextResponse.redirect(`${siteUrl}/checkout?error=session_expired`)
     }
 
-    try {
-      orderData = JSON.parse(Buffer.from(orderDataBase64, 'base64').toString('utf8'))
-    } catch {
-      console.error('[PaymentReturn] Invalid order data')
-      return NextResponse.redirect(`${siteUrl}/checkout?error=invalid_data`)
-    }
+    checkoutSessionStore.delete(referenceNumber)
 
     const { eventId, items, customer, idempotencyKey } = orderData
 
@@ -106,7 +92,8 @@ export async function POST(request: Request) {
 
     if (existingOrder) {
       console.log('[PaymentReturn] Existing order found:', existingOrder.id)
-      return NextResponse.redirect(`${siteUrl}/confirmation?orderId=${existingOrder.id}`)
+      const existingToken = generateConfirmationToken(existingOrder.id)
+      return NextResponse.redirect(`${siteUrl}/confirmation?orderId=${existingOrder.id}&token=${existingToken}`)
     }
 
     // Verify event exists and is published
@@ -249,44 +236,45 @@ export async function POST(request: Request) {
 
     await supabase.from('order_items').insert(orderItems)
 
-    // Create individual tickets with QR codes
+    const ticketRows: {
+      id: string
+      order_id: string
+      ticket_type_id: string
+      qr_code: string
+      qr_signature: string
+      display_code: string
+      status: string
+    }[] = []
     const tickets: { id: string; qrCode: string; displayCode: string; ticketTypeId: string }[] = []
 
     for (const tt of ticketTypeDetails) {
       for (let i = 0; i < tt.quantity; i++) {
+        const ticketId = crypto.randomUUID()
         const displayCode = generateDisplayCode()
-        const { data: ticket, error: ticketError } = await supabase
-          .from('tickets')
-          .insert({
-            order_id: order.id,
-            ticket_type_id: tt.id,
-            qr_code: `temp-${Date.now()}-${Math.random()}`,
-            qr_signature: 'temp',
-            display_code: displayCode,
-            status: 'valid',
-          })
-          .select('id')
-          .single()
+        const { qrCode, qrSignature } = generateQRPayload(ticketId, eventId)
 
-        if (ticketError || !ticket) {
-          console.error('[PaymentReturn] Ticket creation failed:', ticketError)
-          continue
-        }
-
-        const { qrCode, qrSignature } = generateQRPayload(ticket.id, eventId)
-
-        await supabase
-          .from('tickets')
-          .update({ qr_code: qrCode, qr_signature: qrSignature })
-          .eq('id', ticket.id)
+        ticketRows.push({
+          id: ticketId,
+          order_id: order.id,
+          ticket_type_id: tt.id,
+          qr_code: qrCode,
+          qr_signature: qrSignature,
+          display_code: displayCode,
+          status: 'valid',
+        })
 
         tickets.push({
-          id: ticket.id,
+          id: ticketId,
           qrCode,
           displayCode,
           ticketTypeId: tt.id,
         })
       }
+    }
+
+    const { error: ticketInsertError } = await supabase.from('tickets').insert(ticketRows)
+    if (ticketInsertError) {
+      console.error('[PaymentReturn] Ticket batch insert failed:', ticketInsertError)
     }
 
     // Send confirmation email (fire-and-forget)
@@ -310,8 +298,8 @@ export async function POST(request: Request) {
 
     console.log('[PaymentReturn] Order created:', order.id, orderNumber)
 
-    // Redirect to confirmation page
-    return NextResponse.redirect(`${siteUrl}/confirmation?orderId=${order.id}`)
+    const confirmToken = generateConfirmationToken(order.id)
+    return NextResponse.redirect(`${siteUrl}/confirmation?orderId=${order.id}&token=${confirmToken}`)
   } catch (err) {
     console.error('[PaymentReturn] Error:', err)
     return NextResponse.redirect(`${siteUrl}/checkout?error=unexpected`)

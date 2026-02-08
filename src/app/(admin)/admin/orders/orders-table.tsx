@@ -16,7 +16,21 @@ interface OrderRow {
   created_at: string | null
 }
 
-export function OrdersTable({ orders }: { orders: OrderRow[] }) {
+export function OrdersTable({
+  orders,
+  currentPage,
+  totalPages,
+  totalCount,
+  prevPageUrl,
+  nextPageUrl,
+}: {
+  orders: OrderRow[]
+  currentPage: number
+  totalPages: number
+  totalCount: number
+  prevPageUrl: string
+  nextPageUrl: string
+}) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -164,6 +178,44 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-night-700">
+          <span className="text-sm text-night-400">
+            Showing {(currentPage - 1) * 50 + 1}–{Math.min(currentPage * 50, totalCount)} of {totalCount.toLocaleString()} orders
+          </span>
+          <div className="flex items-center gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={prevPageUrl}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-300 hover:text-white transition-colors"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-600 cursor-not-allowed">
+                Previous
+              </span>
+            )}
+            <span className="text-sm text-night-300">
+              Page {currentPage} of {totalPages}
+            </span>
+            {currentPage < totalPages ? (
+              <Link
+                href={nextPageUrl}
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-300 hover:text-white transition-colors"
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-600 cursor-not-allowed">
+                Next
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

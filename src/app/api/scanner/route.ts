@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
       || 'unknown'
-    const { limited, retryAfterMs } = rateLimit(ip, RATE_LIMIT, RATE_WINDOW)
+    const { limited, retryAfterMs } = await rateLimit(ip, RATE_LIMIT, RATE_WINDOW)
 
     if (limited) {
       return NextResponse.json(
@@ -269,34 +269,8 @@ async function handleCheckin(body: { ticketId: string; eventId?: string }, check
 
   const supabase = await createServiceRoleClient()
 
-  const { data: ticket, error: fetchError } = await supabase
-    .from('tickets')
-    .select('id, status, order_id, orders!inner(event_id)')
-    .eq('id', ticketId)
-    .single()
-
-  if (fetchError || !ticket) {
-    return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
-  }
-
-  const orderData = ticket.orders as unknown as { event_id: string }
-  const resolvedEventId = eventId || orderData.event_id
-
-  if (ticket.status === 'used') {
-    await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: ticket.order_id, scannedBy: checkedInBy, result: 'duplicate' })
-    return NextResponse.json({ error: 'Ticket already checked in' }, { status: 400 })
-  }
-
-  if (ticket.status === 'cancelled') {
-    await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: ticket.order_id, scannedBy: checkedInBy, result: 'invalid', notes: 'Cancelled ticket' })
-    return NextResponse.json({ error: 'Ticket has been cancelled' }, { status: 400 })
-  }
-
-  if (ticket.status !== 'valid') {
-    return NextResponse.json({ error: `Ticket status is "${ticket.status}", cannot check in` }, { status: 400 })
-  }
-
-  const { error: updateError } = await supabase
+  // CAS: atomically update only if status is still 'valid'
+  const { data: updated, error: updateError } = await supabase
     .from('tickets')
     .update({
       status: 'used',
@@ -304,14 +278,44 @@ async function handleCheckin(body: { ticketId: string; eventId?: string }, check
       checked_in_by: checkedInBy,
     })
     .eq('id', ticketId)
+    .eq('status', 'valid')
+    .select('id, order_id, orders!inner(event_id)')
+    .single()
 
-  if (updateError) {
-    console.error('Error checking in ticket:', updateError)
-    return NextResponse.json({ error: 'Failed to check in ticket' }, { status: 500 })
+  if (updateError || !updated) {
+    // No row matched — ticket doesn't exist, or status wasn't 'valid'.
+    // Fetch current state to return an appropriate error.
+    const { data: existing } = await supabase
+      .from('tickets')
+      .select('id, status, order_id, orders!inner(event_id)')
+      .eq('id', ticketId)
+      .single()
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
+    }
+
+    const orderData = existing.orders as unknown as { event_id: string }
+    const resolvedEventId = eventId || orderData.event_id
+
+    if (existing.status === 'used') {
+      await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: existing.order_id, scannedBy: checkedInBy, result: 'duplicate' })
+      return NextResponse.json({ error: 'Ticket already checked in' }, { status: 400 })
+    }
+
+    if (existing.status === 'cancelled') {
+      await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: existing.order_id, scannedBy: checkedInBy, result: 'invalid', notes: 'Cancelled ticket' })
+      return NextResponse.json({ error: 'Ticket has been cancelled' }, { status: 400 })
+    }
+
+    return NextResponse.json({ error: `Ticket status is "${existing.status}", cannot check in` }, { status: 400 })
   }
 
+  const orderData = updated.orders as unknown as { event_id: string }
+  const resolvedEventId = eventId || orderData.event_id
+
   // Log the successful check-in
-  await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: ticket.order_id, scannedBy: checkedInBy, result: 'valid' })
+  await logScan(supabase, { eventId: resolvedEventId, ticketId, orderId: updated.order_id, scannedBy: checkedInBy, result: 'valid' })
 
   // Return updated capacity
   const capacity = await getEventCapacity(resolvedEventId)

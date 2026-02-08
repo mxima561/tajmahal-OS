@@ -58,7 +58,10 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
 
     if (search.trim()) {
-      query = query.ilike('name', `%${search.trim()}%`)
+      const sanitizedSearch = search.trim().replace(/[%_]/g, '')
+      if (sanitizedSearch) {
+        query = query.ilike('name', `%${sanitizedSearch}%`)
+      }
     }
 
     const { data, error } = await query

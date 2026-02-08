@@ -1,16 +1,24 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Search } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { EventFilter } from './event-filter'
 import { OrdersTable } from './orders-table'
 
-async function getOrders(filters: { event?: string; status?: string; q?: string }) {
+const PAGE_SIZE = 50
+
+async function getOrders(filters: { event?: string; status?: string; q?: string; page?: string }) {
   const supabase = await createServerSupabaseClient()
+  const page = Math.max(1, parseInt(filters.page || '1', 10) || 1)
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   let query = supabase
     .from('orders')
-    .select('*, events(name)')
+    .select('*, events(name)', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (filters.event) {
     query = query.eq('event_id', filters.event)
@@ -30,14 +38,14 @@ async function getOrders(filters: { event?: string; status?: string; q?: string 
     }
   }
 
-  const { data: orders, error } = await query
+  const { data: orders, error, count } = await query
 
   if (error) {
     console.error('Error fetching orders:', error)
-    return []
+    return { orders: [], totalCount: 0, currentPage: page }
   }
 
-  return orders || []
+  return { orders: orders || [], totalCount: count ?? 0, currentPage: page }
 }
 
 async function getEvents() {
@@ -54,10 +62,12 @@ async function getEvents() {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ event?: string; status?: string; q?: string }>
+  searchParams: Promise<{ event?: string; status?: string; q?: string; page?: string }>
 }) {
   const resolvedSearchParams = await searchParams
-  const [orders, events] = await Promise.all([getOrders(resolvedSearchParams), getEvents()])
+  const [ordersResult, events] = await Promise.all([getOrders(resolvedSearchParams), getEvents()])
+  const { orders, totalCount, currentPage } = ordersResult
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const activeStatus = resolvedSearchParams.status || ''
   const activeEvent = resolvedSearchParams.event || ''
   const searchQuery = resolvedSearchParams.q || ''
@@ -139,7 +149,14 @@ export default async function AdminOrdersPage({
         </div>
 
         {/* Table */}
-        <OrdersTable orders={orderRows} />
+        <OrdersTable
+          orders={orderRows}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          prevPageUrl={buildUrl({ page: currentPage > 2 ? String(currentPage - 1) : '' })}
+          nextPageUrl={buildUrl({ page: String(currentPage + 1) })}
+        />
       </div>
     </div>
   )

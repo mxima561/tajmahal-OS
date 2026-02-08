@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDateTime } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import { ArrowLeft, User, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'

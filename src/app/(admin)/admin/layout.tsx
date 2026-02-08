@@ -1,4 +1,9 @@
 'use client'
+// NOTE: This layout is a client component because it uses usePathname() to detect
+// the login page and conditionally render the sidebar/header. A future optimization
+// would be to extract the auth/login check into a smaller client boundary (e.g., a
+// wrapper component), allowing this layout to remain a Server Component and reducing
+// the client-side JS bundle.
 
 import { usePathname } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'

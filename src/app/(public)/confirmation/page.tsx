@@ -4,8 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import QRCode from 'qrcode';
-import { CheckCircle, Ticket, Calendar, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { CheckCircle, Ticket, Calendar, Loader2, ShieldAlert } from 'lucide-react';
 import { formatCurrency, formatEventDate } from '@/lib/utils/format';
 
 export default function ConfirmationPageWrapper() {
@@ -45,6 +44,7 @@ interface TicketWithQR extends TicketData {
 function ConfirmationPage() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const token = searchParams.get('token');
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [tickets, setTickets] = useState<TicketWithQR[]>([]);
@@ -52,61 +52,55 @@ function ConfirmationPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) {
-      setError('No order ID provided.');
+    if (!orderId || !token) {
+      setError('Invalid confirmation link.');
       setLoading(false);
       return;
     }
 
     async function fetchOrderData() {
-      const supabase = createClient();
+      try {
+        const response = await fetch(
+          `/api/orders/${orderId}/confirmation?token=${encodeURIComponent(token!)}`
+        );
 
-      const [orderResult, ticketsResult] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, order_number, customer_name, customer_email, total, events(name, start_time)')
-          .eq('id', orderId!)
-          .single(),
-        supabase
-          .from('tickets')
-          .select('id, display_code, qr_code, status, ticket_types(name)')
-          .eq('order_id', orderId!),
-      ]);
+        if (!response.ok) {
+          if (response.status === 403) {
+            setError('This confirmation link has expired. Please check your email for your tickets.');
+          } else {
+            setError('Unable to find your order.');
+          }
+          setLoading(false);
+          return;
+        }
 
-      if (orderResult.error) {
-        setError('Unable to find your order. Please check your order ID.');
+        const data = await response.json();
+        setOrder(data.order as OrderData);
+
+        const ticketsWithQR = await Promise.all(
+          (data.tickets as TicketData[]).map(async (ticket: TicketData) => {
+            const qr_data_url = await QRCode.toDataURL(ticket.qr_code, {
+              width: 250,
+              margin: 2,
+              color: {
+                dark: '#D4AF37',
+                light: '#0A0A0F',
+              },
+            });
+            return { ...ticket, qr_data_url };
+          })
+        );
+
+        setTickets(ticketsWithQR);
         setLoading(false);
-        return;
-      }
-
-      if (ticketsResult.error) {
-        setError('Unable to load tickets for this order.');
+      } catch {
+        setError('Failed to load order details.');
         setLoading(false);
-        return;
       }
-
-      setOrder(orderResult.data as unknown as OrderData);
-
-      const ticketsWithQR = await Promise.all(
-        (ticketsResult.data as unknown as TicketData[]).map(async (ticket) => {
-          const qr_data_url = await QRCode.toDataURL(ticket.qr_code, {
-            width: 250,
-            margin: 2,
-            color: {
-              dark: '#D4AF37',
-              light: '#0A0A0F',
-            },
-          });
-          return { ...ticket, qr_data_url };
-        })
-      );
-
-      setTickets(ticketsWithQR);
-      setLoading(false);
     }
 
     fetchOrderData();
-  }, [orderId]);
+  }, [orderId, token]);
 
   if (loading) {
     return (
@@ -123,7 +117,8 @@ function ConfirmationPage() {
     return (
       <div className="min-h-screen bg-night-950 flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <p className="text-red-400 text-lg mb-4">{error || 'Order not found.'}</p>
+          <ShieldAlert className="mx-auto h-12 w-12 text-night-400 mb-4" />
+          <p className="text-night-300 text-lg mb-4">{error || 'Order not found.'}</p>
           <Link
             href="/"
             className="inline-block rounded-lg bg-gold-500 px-6 py-3 text-night-950 font-semibold hover:bg-gold-400 transition-colors"

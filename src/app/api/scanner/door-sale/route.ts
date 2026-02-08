@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id
-      await serviceClient
+      const { error: custUpdateError } = await serviceClient
         .from('customers')
         .update({
           name: customerName,
@@ -100,6 +100,11 @@ export async function POST(request: NextRequest) {
           total_spent: (existingCustomer.total_spent || 0) + total,
         })
         .eq('id', customerId)
+
+      if (custUpdateError) {
+        console.error('Failed to update customer:', custUpdateError)
+        return NextResponse.json({ error: 'Failed to update customer record' }, { status: 500 })
+      }
     } else {
       const { data: newCustomer, error: custError } = await serviceClient
         .from('customers')
@@ -150,7 +155,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create order items
-    await serviceClient.from('order_items').insert({
+    const { error: itemsError } = await serviceClient.from('order_items').insert({
       order_id: order.id,
       ticket_type_id: ticketTypeId,
       quantity,
@@ -158,13 +163,19 @@ export async function POST(request: NextRequest) {
       total_price: total,
     })
 
+    if (itemsError) {
+      console.error('Failed to create order items:', itemsError)
+      return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
+    }
+
     // quantity_sold already incremented atomically by reserve_tickets RPC
 
     // Create tickets (already checked in)
     const now = new Date().toISOString()
+    let ticketFailures = 0
     for (let i = 0; i < quantity; i++) {
       const displayCode = generateDisplayCode()
-      const { data: ticket } = await serviceClient
+      const { data: ticket, error: ticketError } = await serviceClient
         .from('tickets')
         .insert({
           order_id: order.id,
@@ -179,23 +190,35 @@ export async function POST(request: NextRequest) {
         .select('id')
         .single()
 
-      if (ticket) {
-        const { qrCode, qrSignature } = generateQRPayload(ticket.id, eventId)
-        await serviceClient
-          .from('tickets')
-          .update({ qr_code: qrCode, qr_signature: qrSignature })
-          .eq('id', ticket.id)
-
-        // Log the check-in
-        await serviceClient.from('check_in_logs').insert({
-          event_id: eventId,
-          ticket_id: ticket.id,
-          order_id: order.id,
-          scanned_by: adminUser.id,
-          scan_result: 'valid',
-          notes: `Door sale (${paymentMethod})${notes ? ': ' + notes : ''}`,
-        })
+      if (ticketError || !ticket) {
+        console.error(`Failed to create ticket ${i + 1}/${quantity}:`, ticketError)
+        ticketFailures++
+        continue
       }
+
+      const { qrCode, qrSignature } = generateQRPayload(ticket.id, eventId)
+      const { error: qrUpdateError } = await serviceClient
+        .from('tickets')
+        .update({ qr_code: qrCode, qr_signature: qrSignature })
+        .eq('id', ticket.id)
+
+      if (qrUpdateError) {
+        console.error(`Failed to update QR code for ticket ${ticket.id}:`, qrUpdateError)
+      }
+
+      // Log the check-in
+      await serviceClient.from('check_in_logs').insert({
+        event_id: eventId,
+        ticket_id: ticket.id,
+        order_id: order.id,
+        scanned_by: adminUser.id,
+        scan_result: 'valid',
+        notes: `Door sale (${paymentMethod})${notes ? ': ' + notes : ''}`,
+      })
+    }
+
+    if (ticketFailures > 0) {
+      console.error(`${ticketFailures}/${quantity} tickets failed to create for order ${order.id}`)
     }
 
     const capacity = await getEventCapacity(eventId)

@@ -1,6 +1,19 @@
 import crypto from 'crypto'
 import { PaymentProvider, CheckoutSession, PaymentResult, RefundResult } from './types'
 
+/**
+ * CyberSource Secure Acceptance Payment Provider
+ * 
+ * Sandbox Test Cards:
+ * - Visa (success):        4111111111111111  (any future exp, any CVV)
+ * - Mastercard (success):  5555555555554444
+ * - Amex (success):        378282246310005
+ * - Visa (decline):        4000000000000002
+ * - Insufficient funds:    4000000000009995
+ * 
+ * @see https://developer.cybersource.com/hello-world/testing-guide.html
+ */
+
 const SANDBOX_HOST = 'apitest.cybersource.com'
 const PRODUCTION_HOST = 'api.cybersource.com'
 
@@ -24,6 +37,25 @@ function getConfig(): CyberSourceConfig {
   }
 
   return { merchantId, accessKey, secretKey, environment, profileId }
+}
+
+/**
+ * Validate CyberSource configuration at startup.
+ * Call this during app initialization to fail fast on missing credentials.
+ */
+export function validateCyberSourceConfig(): { valid: boolean; missing: string[] } {
+  const required = [
+    'CYBERSOURCE_MERCHANT_ID',
+    'CYBERSOURCE_ACCESS_KEY',
+    'CYBERSOURCE_SECRET_KEY',
+  ] as const
+
+  const missing = required.filter(key => !process.env[key])
+
+  return {
+    valid: missing.length === 0,
+    missing,
+  }
 }
 
 function getHost(config: CyberSourceConfig): string {
@@ -193,15 +225,19 @@ export class CyberSourceProvider implements PaymentProvider {
     // With Secure Acceptance Hosted Checkout, payment processing happens on CyberSource's
     // hosted page and the result is returned via redirect to /api/payment/return
     // This method is not used in the Secure Acceptance flow
-    throw new Error('CyberSource Secure Acceptance uses redirect flow - processPayment should not be called')
+    return {
+      success: false,
+      transactionId: '',
+      error: 'CyberSource Secure Acceptance uses redirect flow - processPayment should not be called directly',
+    }
   }
 
-  async refundPayment(transactionId: string, amount: number): Promise<RefundResult> {
+  async refundPayment(transactionId: string, amount: number, currency = 'EGP'): Promise<RefundResult> {
     const requestBody = {
       orderInformation: {
         amountDetails: {
           totalAmount: (amount / 100).toFixed(2),
-          currency: 'EGP',
+          currency: currency,
         },
       },
     }

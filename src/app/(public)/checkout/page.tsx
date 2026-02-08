@@ -129,7 +129,6 @@ function CheckoutPage() {
       const idempotencyKey = crypto.randomUUID()
 
       if (paymentProvider === 'cybersource') {
-        // CyberSource Secure Acceptance redirect flow
         const response = await fetch('/api/payment/secure-acceptance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -190,7 +189,7 @@ function CheckoutPage() {
           throw new Error(data.error || 'Checkout failed')
         }
 
-        router.push(`/confirmation?orderId=${data.orderId}`)
+        router.push(`/confirmation?orderId=${data.orderId}&token=${data.confirmationToken}`)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')

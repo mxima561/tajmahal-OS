@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatDateTime } from '@/lib/utils/format'
 import { VipInquiry } from '@/types/database'
 import { ArrowLeft } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { VipInquiryEditor } from './VipInquiryEditor'

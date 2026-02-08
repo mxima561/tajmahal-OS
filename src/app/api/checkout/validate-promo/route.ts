@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
       || 'unknown'
-    const { limited, retryAfterMs } = rateLimit(`validate-promo:${ip}`, 20, 60000)
+    const { limited, retryAfterMs } = await rateLimit(`validate-promo:${ip}`, 20, 60000)
     if (limited) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait before trying again.' },

@@ -1,62 +1,75 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { z } from 'zod'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { checkoutSessionStore } from '@/lib/payments/checkout-session-store'
+import { rateLimit } from '@/lib/rate-limit'
 
-const SANDBOX_SECURE_ACCEPTANCE_URL = 'https://testsecureacceptance.cybersource.com/pay'
-const PRODUCTION_SECURE_ACCEPTANCE_URL = 'https://secureacceptance.cybersource.com/pay'
+const SANDBOX_URL = 'https://testsecureacceptance.cybersource.com/pay'
+const PRODUCTION_URL = 'https://secureacceptance.cybersource.com/pay'
 
-interface SecureAcceptanceRequest {
-  eventId: string
-  items: Array<{ ticketTypeId: string; quantity: number }>
-  customer: { name: string; email: string; phone?: string }
-  idempotencyKey: string
-}
+const secureAcceptanceSchema = z.object({
+  eventId: z.string().uuid(),
+  items: z.array(
+    z.object({
+      ticketTypeId: z.string().uuid(),
+      quantity: z.number().int().min(1).max(10),
+    })
+  ).min(1).max(20),
+  customer: z.object({
+    name: z.string().min(1).max(200),
+    email: z.string().email().max(254),
+    phone: z.string().max(20).optional(),
+  }),
+  idempotencyKey: z.string().min(1).max(100),
+})
 
-// Generate HMAC-SHA256 signature for Secure Acceptance
-function signSecureAcceptanceData(params: Record<string, string>, secretKey: string): string {
-  const signedFieldNames = params.signed_field_names?.split(',') || []
-  const dataToSign = signedFieldNames
-    .map(field => `${field}=${params[field]}`)
-    .join(',')
-
-  // Secure Acceptance uses the secret key as a raw UTF-8 string
-  const signature = crypto
-    .createHmac('sha256', secretKey)
-    .update(dataToSign)
-    .digest('base64')
-
-  return signature
+function signParams(params: Record<string, string>, secretKey: string): string {
+  const fields = params.signed_field_names?.split(',') || []
+  const dataToSign = fields.map(f => `${f}=${params[f]}`).join(',')
+  return crypto.createHmac('sha256', secretKey).update(dataToSign).digest('base64')
 }
 
 export async function POST(request: Request) {
   try {
-    const body: SecureAcceptanceRequest = await request.json()
-    const { eventId, items, customer, idempotencyKey } = body
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
 
-    // Validate required fields
-    if (!eventId || !items?.length || !customer?.name || !customer?.email || !idempotencyKey) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const { limited, retryAfterMs } = await rateLimit(`sa:${ip}`, 10, 60000)
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+      )
     }
 
-    // Check if payment provider is CyberSource
-    const paymentProvider = process.env.PAYMENT_PROVIDER
-    if (paymentProvider !== 'cybersource') {
+    const body = await request.json()
+    const parsed = secureAcceptanceSchema.safeParse(body)
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request' },
+        { status: 400 }
+      )
+    }
+
+    const { eventId, items, customer, idempotencyKey } = parsed.data
+
+    if (process.env.PAYMENT_PROVIDER !== 'cybersource') {
       return NextResponse.json({ error: 'CyberSource not configured' }, { status: 400 })
     }
 
-    // Get CyberSource credentials
-    const merchantId = process.env.CYBERSOURCE_MERCHANT_ID
     const profileId = process.env.CYBERSOURCE_PROFILE_ID
     const accessKey = process.env.CYBERSOURCE_ACCESS_KEY
     const secretKey = process.env.CYBERSOURCE_SECRET_KEY
     const environment = process.env.CYBERSOURCE_ENVIRONMENT || 'sandbox'
 
-    if (!merchantId || !profileId || !accessKey || !secretKey) {
+    if (!profileId || !accessKey || !secretKey) {
       console.error('[SecureAcceptance] Missing CyberSource credentials')
       return NextResponse.json({ error: 'Payment configuration incomplete' }, { status: 500 })
     }
 
-    // Fetch event and ticket types to calculate total
     const supabase = await createServerSupabaseClient()
 
     const { data: event, error: eventError } = await supabase
@@ -73,7 +86,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Event is not available' }, { status: 400 })
     }
 
-    // Fetch ticket types and calculate total
     const ticketTypeIds = items.map(i => i.ticketTypeId)
     const { data: ticketTypes, error: ticketError } = await supabase
       .from('ticket_types')
@@ -85,14 +97,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ticket types not found' }, { status: 404 })
     }
 
-    // Calculate total amount
     let totalAmount = 0
     for (const item of items) {
       const ticketType = ticketTypes.find(t => t.id === item.ticketTypeId)
       if (!ticketType) {
         return NextResponse.json({ error: `Ticket type ${item.ticketTypeId} not found` }, { status: 400 })
       }
-      // Check availability
       const available = ticketType.quantity_total - (ticketType.quantity_sold ?? 0)
       if (item.quantity > available) {
         return NextResponse.json({ error: `Not enough tickets available for ${ticketType.name}` }, { status: 400 })
@@ -100,24 +110,23 @@ export async function POST(request: Request) {
       totalAmount += ticketType.price * item.quantity
     }
 
-    // Convert to decimal format (CyberSource expects amount in major units)
-    const amountString = (totalAmount / 100).toFixed(2)
-
-    // Generate unique transaction reference
     const transactionUuid = crypto.randomUUID()
     const referenceNumber = `TM-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-
-    // Set timestamps
+    // UTC ISO 8601 without milliseconds — required format for CyberSource SA
     const signedDateTime = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
 
-    // Note: Return URLs are configured in CyberSource Business Center profile settings
-    // Build form parameters
-    // Store order data in the merchant_defined fields for retrieval on return
-    const orderData = JSON.stringify({ eventId, items, customer, idempotencyKey })
-    const orderDataBase64 = Buffer.from(orderData).toString('base64')
+    const nameParts = customer.name.trim().split(/\s+/)
+    const firstName = nameParts[0] || 'Customer'
+    const lastName = nameParts.slice(1).join(' ') || firstName
 
-    // Build signed fields - order matters for signature generation
-    const signedFieldNames = [
+    checkoutSessionStore.set(referenceNumber, {
+      eventId,
+      items,
+      customer,
+      idempotencyKey,
+    })
+
+    const signedFieldsList = [
       'access_key',
       'profile_id',
       'transaction_uuid',
@@ -132,19 +141,18 @@ export async function POST(request: Request) {
       'bill_to_forename',
       'bill_to_surname',
       'bill_to_email',
-      'bill_to_phone',
       'bill_to_address_line1',
       'bill_to_address_city',
       'bill_to_address_state',
       'bill_to_address_postal_code',
       'bill_to_address_country',
-      'merchant_defined_data1',
-    ].join(',')
+    ]
 
-    // Parse customer name into first/last
-    const nameParts = customer.name.trim().split(/\s+/)
-    const firstName = nameParts[0] || 'Customer'
-    const lastName = nameParts.slice(1).join(' ') || firstName
+    if (customer.phone?.trim()) {
+      signedFieldsList.push('bill_to_phone')
+    }
+
+    const signedFieldNames = signedFieldsList.join(',')
 
     const params: Record<string, string> = {
       access_key: accessKey,
@@ -156,28 +164,32 @@ export async function POST(request: Request) {
       locale: 'en',
       transaction_type: 'sale',
       reference_number: referenceNumber,
-      amount: amountString,
+      amount: totalAmount.toFixed(2),
       currency: 'EGP',
       bill_to_forename: firstName,
       bill_to_surname: lastName,
       bill_to_email: customer.email,
-      bill_to_phone: customer.phone || '',
       bill_to_address_line1: 'N/A',
       bill_to_address_city: 'Sharm El Sheikh',
       bill_to_address_state: 'South Sinai',
       bill_to_address_postal_code: '00000',
       bill_to_address_country: 'EG',
-      merchant_defined_data1: orderDataBase64,
     }
 
-    // Generate signature
-    const signature = signSecureAcceptanceData(params, secretKey)
-    params.signature = signature
+    if (customer.phone?.trim()) {
+      params.bill_to_phone = customer.phone.trim()
+    }
 
-    // Determine checkout URL
-    const checkoutUrl = environment === 'production'
-      ? PRODUCTION_SECURE_ACCEPTANCE_URL
-      : SANDBOX_SECURE_ACCEPTANCE_URL
+    params.signature = signParams(params, secretKey)
+
+    const checkoutUrl = environment === 'production' ? PRODUCTION_URL : SANDBOX_URL
+
+    console.log('[SecureAcceptance] Request prepared:', {
+      checkoutUrl,
+      amount: params.amount,
+      currency: params.currency,
+      referenceNumber,
+    })
 
     return NextResponse.json({
       checkoutUrl,

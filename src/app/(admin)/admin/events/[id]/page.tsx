@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDateTime, formatEventDate, formatEventTime } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import { EventWithTicketTypes } from '@/types/database'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'

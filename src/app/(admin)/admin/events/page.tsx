@@ -1,11 +1,13 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { EventWithTicketTypes } from '@/types/database'
+
+export const dynamic = 'force-dynamic'
 import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { generateUpcomingFridays } from '@/lib/events/generate-fridays'
 import { EventsTable } from './events-table'
 
-async function getEvents() {
+async function getEvents(tab: string, searchQuery: string) {
   // Auto-generate upcoming Fridays (idempotent, non-blocking)
   try {
     await generateUpcomingFridays()
@@ -14,11 +16,32 @@ async function getEvents() {
   }
 
   const supabase = await createServerSupabaseClient()
+  const now = new Date().toISOString()
 
-  const { data: events, error } = await supabase
+  let query = supabase
     .from('events')
     .select('*, ticket_types(*)')
     .order('start_time', { ascending: false })
+    .limit(100)
+
+  // Push tab filtering to the database
+  if (tab === 'upcoming') {
+    query = query.in('status', ['published']).gt('start_time', now)
+  } else if (tab === 'past') {
+    query = query.in('status', ['published']).lte('start_time', now)
+  } else if (tab === 'draft') {
+    query = query.eq('status', 'draft')
+  }
+
+  // Push search filtering to the database
+  if (searchQuery) {
+    const sanitized = searchQuery.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.ilike('name', `%${sanitized}%`)
+    }
+  }
+
+  const { data: events, error } = await query
 
   if (error) {
     console.error('Error fetching events:', error)
@@ -33,12 +56,6 @@ function getEventStatus(event: EventWithTicketTypes): 'draft' | 'published' | 'c
   return event.status as 'draft' | 'published'
 }
 
-function getEventTab(event: EventWithTicketTypes, now: Date): 'upcoming' | 'past' | 'draft' {
-  if (event.status === 'draft') return 'draft'
-  if (new Date(event.start_time) > now) return 'upcoming'
-  return 'past'
-}
-
 function getTicketsSold(event: EventWithTicketTypes): number {
   return event.ticket_types?.reduce((sum, tt) => sum + (tt.quantity_sold || 0), 0) || 0
 }
@@ -50,35 +67,43 @@ function getRevenue(event: EventWithTicketTypes): number {
   ) || 0
 }
 
+async function getEventCounts() {
+  const supabase = await createServerSupabaseClient()
+  const now = new Date().toISOString()
+
+  const [allResult, upcomingResult, pastResult, draftResult] = await Promise.all([
+    supabase.from('events').select('id', { count: 'exact', head: true }),
+    supabase.from('events').select('id', { count: 'exact', head: true }).in('status', ['published']).gt('start_time', now),
+    supabase.from('events').select('id', { count: 'exact', head: true }).in('status', ['published']).lte('start_time', now),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
+  ])
+
+  return {
+    all: allResult.count ?? 0,
+    upcoming: upcomingResult.count ?? 0,
+    past: pastResult.count ?? 0,
+    draft: draftResult.count ?? 0,
+  }
+}
+
 export default async function AdminEventsPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string; q?: string }>
 }) {
   const resolvedSearchParams = await searchParams
-  const events = await getEvents()
-  const now = new Date()
   const activeTab = resolvedSearchParams.tab || 'all'
   const searchQuery = resolvedSearchParams.q || ''
-
-  // Filter events
-  let filteredEvents = events
-
-  if (searchQuery) {
-    filteredEvents = filteredEvents.filter((e) =>
-      e.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }
-
-  if (activeTab !== 'all') {
-    filteredEvents = filteredEvents.filter((e) => getEventTab(e, now) === activeTab)
-  }
+  const [filteredEvents, counts] = await Promise.all([
+    getEvents(activeTab, searchQuery),
+    getEventCounts(),
+  ])
 
   const tabs = [
-    { key: 'all', label: 'All', count: events.length },
-    { key: 'upcoming', label: 'Upcoming', count: events.filter((e) => getEventTab(e, now) === 'upcoming').length },
-    { key: 'past', label: 'Past', count: events.filter((e) => getEventTab(e, now) === 'past').length },
-    { key: 'draft', label: 'Draft', count: events.filter((e) => getEventTab(e, now) === 'draft').length },
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'upcoming', label: 'Upcoming', count: counts.upcoming },
+    { key: 'past', label: 'Past', count: counts.past },
+    { key: 'draft', label: 'Draft', count: counts.draft },
   ]
 
   // Map to serializable rows for the client component

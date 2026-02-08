@@ -42,22 +42,20 @@ export async function GET(request: Request) {
     const dateTo = searchParams.get('date_to')
 
     const supabase = await createServiceRoleClient()
+    const BATCH_SIZE = 1000
 
-    let query = supabase
-      .from('orders')
-      .select('*, events(name)')
-      .order('created_at', { ascending: false })
+    function buildQuery() {
+      let query = supabase
+        .from('orders')
+        .select('*, events(name)')
+        .order('created_at', { ascending: false })
 
-    if (eventId) query = query.eq('event_id', eventId)
-    if (status) query = query.eq('payment_status', status)
-    if (dateFrom) query = query.gte('created_at', dateFrom)
-    if (dateTo) query = query.lte('created_at', dateTo)
+      if (eventId) query = query.eq('event_id', eventId)
+      if (status) query = query.eq('payment_status', status)
+      if (dateFrom) query = query.gte('created_at', dateFrom)
+      if (dateTo) query = query.lte('created_at', dateTo)
 
-    const { data: orders, error } = await query
-
-    if (error) {
-      console.error('Export orders error:', error)
-      return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })
+      return query
     }
 
     const headers = [
@@ -76,7 +74,7 @@ export async function GET(request: Request) {
       'Date',
     ]
 
-    const rows = (orders ?? []).map((order: Record<string, unknown>) => {
+    function orderToRow(order: Record<string, unknown>): string {
       const event = order.events as { name: string } | null
       return [
         escapeCSV(order.order_number as string),
@@ -93,9 +91,31 @@ export async function GET(request: Request) {
         escapeCSV(order.promoter_id as string | null),
         escapeCSV(order.created_at as string),
       ].join(',')
-    })
+    }
 
-    const csv = [headers.join(','), ...rows].join('\n')
+    // Fetch in batches to avoid loading all orders into memory at once
+    const csvParts: string[] = [headers.join(',')]
+    let offset = 0
+
+    while (true) {
+      const { data: batch, error } = await buildQuery().range(offset, offset + BATCH_SIZE - 1)
+
+      if (error) {
+        console.error('Export orders error:', error)
+        return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })
+      }
+
+      if (!batch || batch.length === 0) break
+
+      for (const order of batch) {
+        csvParts.push(orderToRow(order as Record<string, unknown>))
+      }
+
+      if (batch.length < BATCH_SIZE) break
+      offset += BATCH_SIZE
+    }
+
+    const csv = csvParts.join('\n')
     const today = new Date().toISOString().split('T')[0]
 
     return new Response(csv, {
