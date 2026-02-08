@@ -1,16 +1,24 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { formatCurrency, formatDateTime } from '@/lib/utils/format'
-import { ShoppingCart, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { EventFilter } from './event-filter'
+import { OrdersTable } from './orders-table'
 
-async function getOrders(filters: { event?: string; status?: string; q?: string }) {
+const PAGE_SIZE = 50
+
+async function getOrders(filters: { event?: string; status?: string; q?: string; page?: string }) {
   const supabase = await createServerSupabaseClient()
+  const page = Math.max(1, parseInt(filters.page || '1', 10) || 1)
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   let query = supabase
     .from('orders')
-    .select('*, events(name)')
+    .select('*, events(name)', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (filters.event) {
     query = query.eq('event_id', filters.event)
@@ -21,19 +29,23 @@ async function getOrders(filters: { event?: string; status?: string; q?: string 
   }
 
   if (filters.q) {
-    query = query.or(
-      `order_number.ilike.%${filters.q}%,customer_name.ilike.%${filters.q}%,customer_email.ilike.%${filters.q}%`
-    )
+    // Sanitize search input to prevent PostgREST filter injection
+    const sanitized = filters.q.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.or(
+        `order_number.ilike.%${sanitized}%,customer_name.ilike.%${sanitized}%,customer_email.ilike.%${sanitized}%`
+      )
+    }
   }
 
-  const { data: orders, error } = await query
+  const { data: orders, error, count } = await query
 
   if (error) {
     console.error('Error fetching orders:', error)
-    return []
+    return { orders: [], totalCount: 0, currentPage: page }
   }
 
-  return orders || []
+  return { orders: orders || [], totalCount: count ?? 0, currentPage: page }
 }
 
 async function getEvents() {
@@ -50,12 +62,15 @@ async function getEvents() {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: { event?: string; status?: string; q?: string }
+  searchParams: Promise<{ event?: string; status?: string; q?: string; page?: string }>
 }) {
-  const [orders, events] = await Promise.all([getOrders(searchParams), getEvents()])
-  const activeStatus = searchParams.status || ''
-  const activeEvent = searchParams.event || ''
-  const searchQuery = searchParams.q || ''
+  const resolvedSearchParams = await searchParams
+  const [ordersResult, events] = await Promise.all([getOrders(resolvedSearchParams), getEvents()])
+  const { orders, totalCount, currentPage } = ordersResult
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const activeStatus = resolvedSearchParams.status || ''
+  const activeEvent = resolvedSearchParams.event || ''
+  const searchQuery = resolvedSearchParams.q || ''
 
   function buildUrl(overrides: Record<string, string>) {
     const params = new URLSearchParams()
@@ -74,6 +89,17 @@ export default async function AdminOrdersPage({
     { key: 'failed', label: 'Failed' },
     { key: 'refunded', label: 'Refunded' },
   ]
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orderRows = orders.map((order: any) => ({
+    id: order.id,
+    order_number: order.order_number,
+    customer_name: order.customer_name,
+    event_name: order.events?.name || '—',
+    total: order.total,
+    payment_status: order.payment_status,
+    created_at: order.created_at,
+  }))
 
   return (
     <div className="space-y-6">
@@ -116,81 +142,22 @@ export default async function AdminOrdersPage({
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search orders..."
-                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
               />
             </form>
           </div>
         </div>
 
         {/* Table */}
-        {orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-night-400">
-            <ShoppingCart className="w-10 h-10 mb-3 text-night-600" />
-            <p className="text-sm">No orders found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-night-700 text-night-400">
-                  <th className="text-left py-3 px-4 font-medium">Order Number</th>
-                  <th className="text-left py-3 px-4 font-medium">Customer Name</th>
-                  <th className="text-left py-3 px-4 font-medium">Event</th>
-                  <th className="text-left py-3 px-4 font-medium">Total</th>
-                  <th className="text-left py-3 px-4 font-medium">Payment Status</th>
-                  <th className="text-left py-3 px-4 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {orders.map((order: any) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-night-800 last:border-0 hover:bg-night-800 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        className="font-medium text-white hover:text-gold-400 transition-colors"
-                      >
-                        {order.order_number}
-                      </Link>
-                    </td>
-                    <td className="py-3 px-4 text-night-300">{order.customer_name}</td>
-                    <td className="py-3 px-4 text-night-300">{order.events?.name || '—'}</td>
-                    <td className="py-3 px-4 text-night-300">{formatCurrency(order.total)}</td>
-                    <td className="py-3 px-4">
-                      <PaymentStatusBadge status={order.payment_status} />
-                    </td>
-                    <td className="py-3 px-4 text-night-300">
-                      {formatDateTime(order.created_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <OrdersTable
+          orders={orderRows}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          prevPageUrl={buildUrl({ page: currentPage > 2 ? String(currentPage - 1) : '' })}
+          nextPageUrl={buildUrl({ page: String(currentPage + 1) })}
+        />
       </div>
     </div>
-  )
-}
-
-function PaymentStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    paid: 'bg-green-500/10 text-green-400',
-    pending: 'bg-yellow-500/10 text-yellow-400',
-    failed: 'bg-red-500/10 text-red-400',
-    refunded: 'bg-blue-500/10 text-blue-400',
-  }
-
-  return (
-    <span
-      className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium capitalize ${
-        styles[status] || 'bg-night-700 text-night-300'
-      }`}
-    >
-      {status}
-    </span>
   )
 }

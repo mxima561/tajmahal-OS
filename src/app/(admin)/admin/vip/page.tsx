@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatDateTime } from '@/lib/utils/format'
 import { VipInquiry } from '@/types/database'
 import { Crown, Filter } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 
 async function getVipInquiries(status?: string) {
@@ -48,9 +50,10 @@ function StatusBadge({ status }: { status: string }) {
 export default async function AdminVipPage({
   searchParams,
 }: {
-  searchParams: { status?: string }
+  searchParams: Promise<{ status?: string }>
 }) {
-  const activeStatus = searchParams.status || 'all'
+  const resolvedSearchParams = await searchParams
+  const activeStatus = resolvedSearchParams.status || 'all'
   const inquiries = await getVipInquiries(activeStatus)
 
   const statusFilters = [

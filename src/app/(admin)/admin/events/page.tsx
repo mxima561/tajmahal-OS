@@ -1,16 +1,47 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { formatCurrency, formatDateTime } from '@/lib/utils/format'
 import { EventWithTicketTypes } from '@/types/database'
-import { Calendar, Plus, Search } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
+import { Plus, Search } from 'lucide-react'
 import Link from 'next/link'
+import { generateUpcomingFridays } from '@/lib/events/generate-fridays'
+import { EventsTable } from './events-table'
 
-async function getEvents() {
+async function getEvents(tab: string, searchQuery: string) {
+  // Auto-generate upcoming Fridays (idempotent, non-blocking)
+  try {
+    await generateUpcomingFridays()
+  } catch (e) {
+    console.error('Friday generation error:', e)
+  }
+
   const supabase = await createServerSupabaseClient()
+  const now = new Date().toISOString()
 
-  const { data: events, error } = await supabase
+  let query = supabase
     .from('events')
     .select('*, ticket_types(*)')
     .order('start_time', { ascending: false })
+    .limit(100)
+
+  // Push tab filtering to the database
+  if (tab === 'upcoming') {
+    query = query.in('status', ['published']).gt('start_time', now)
+  } else if (tab === 'past') {
+    query = query.in('status', ['published']).lte('start_time', now)
+  } else if (tab === 'draft') {
+    query = query.eq('status', 'draft')
+  }
+
+  // Push search filtering to the database
+  if (searchQuery) {
+    const sanitized = searchQuery.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.ilike('name', `%${sanitized}%`)
+    }
+  }
+
+  const { data: events, error } = await query
 
   if (error) {
     console.error('Error fetching events:', error)
@@ -25,12 +56,6 @@ function getEventStatus(event: EventWithTicketTypes): 'draft' | 'published' | 'c
   return event.status as 'draft' | 'published'
 }
 
-function getEventTab(event: EventWithTicketTypes, now: Date): 'upcoming' | 'past' | 'draft' {
-  if (event.status === 'draft') return 'draft'
-  if (new Date(event.start_time) > now) return 'upcoming'
-  return 'past'
-}
-
 function getTicketsSold(event: EventWithTicketTypes): number {
   return event.ticket_types?.reduce((sum, tt) => sum + (tt.quantity_sold || 0), 0) || 0
 }
@@ -42,35 +67,57 @@ function getRevenue(event: EventWithTicketTypes): number {
   ) || 0
 }
 
+async function getEventCounts() {
+  const supabase = await createServerSupabaseClient()
+  const now = new Date().toISOString()
+
+  const [allResult, upcomingResult, pastResult, draftResult] = await Promise.all([
+    supabase.from('events').select('id', { count: 'exact', head: true }),
+    supabase.from('events').select('id', { count: 'exact', head: true }).in('status', ['published']).gt('start_time', now),
+    supabase.from('events').select('id', { count: 'exact', head: true }).in('status', ['published']).lte('start_time', now),
+    supabase.from('events').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
+  ])
+
+  return {
+    all: allResult.count ?? 0,
+    upcoming: upcomingResult.count ?? 0,
+    past: pastResult.count ?? 0,
+    draft: draftResult.count ?? 0,
+  }
+}
+
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: { tab?: string; q?: string }
+  searchParams: Promise<{ tab?: string; q?: string }>
 }) {
-  const events = await getEvents()
-  const now = new Date()
-  const activeTab = searchParams.tab || 'all'
-  const searchQuery = searchParams.q || ''
-
-  // Filter events
-  let filteredEvents = events
-
-  if (searchQuery) {
-    filteredEvents = filteredEvents.filter((e) =>
-      e.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }
-
-  if (activeTab !== 'all') {
-    filteredEvents = filteredEvents.filter((e) => getEventTab(e, now) === activeTab)
-  }
+  const resolvedSearchParams = await searchParams
+  const activeTab = resolvedSearchParams.tab || 'all'
+  const searchQuery = resolvedSearchParams.q || ''
+  const [filteredEvents, counts] = await Promise.all([
+    getEvents(activeTab, searchQuery),
+    getEventCounts(),
+  ])
 
   const tabs = [
-    { key: 'all', label: 'All', count: events.length },
-    { key: 'upcoming', label: 'Upcoming', count: events.filter((e) => getEventTab(e, now) === 'upcoming').length },
-    { key: 'past', label: 'Past', count: events.filter((e) => getEventTab(e, now) === 'past').length },
-    { key: 'draft', label: 'Draft', count: events.filter((e) => getEventTab(e, now) === 'draft').length },
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'upcoming', label: 'Upcoming', count: counts.upcoming },
+    { key: 'past', label: 'Past', count: counts.past },
+    { key: 'draft', label: 'Draft', count: counts.draft },
   ]
+
+  // Map to serializable rows for the client component
+  const eventRows = filteredEvents.map((event) => ({
+    id: event.id,
+    name: event.name,
+    dj_name: event.dj_name ?? null,
+    is_auto_generated: event.is_auto_generated ?? false,
+    start_time: event.start_time,
+    total_capacity: event.total_capacity,
+    status: getEventStatus(event),
+    ticketsSold: getTicketsSold(event),
+    revenue: getRevenue(event),
+  }))
 
   return (
     <div className="space-y-6">
@@ -117,81 +164,15 @@ export default async function AdminEventsPage({
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search events..."
-                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
               />
             </form>
           </div>
         </div>
 
         {/* Table */}
-        {filteredEvents.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-night-400">
-            <Calendar className="w-10 h-10 mb-3 text-night-600" />
-            <p className="text-sm">No events found</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-night-700 text-night-400">
-                  <th className="text-left py-3 px-4 font-medium">Event Name</th>
-                  <th className="text-left py-3 px-4 font-medium">Date</th>
-                  <th className="text-left py-3 px-4 font-medium">Tickets</th>
-                  <th className="text-left py-3 px-4 font-medium">Revenue</th>
-                  <th className="text-left py-3 px-4 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEvents.map((event) => {
-                  const status = getEventStatus(event)
-                  const sold = getTicketsSold(event)
-                  const revenue = getRevenue(event)
-
-                  return (
-                    <tr key={event.id} className="border-b border-night-800 last:border-0">
-                      <td className="py-3 px-4">
-                        <Link
-                          href={`/admin/events/${event.id}/edit`}
-                          className="font-medium text-white hover:text-gold-400 transition-colors"
-                        >
-                          {event.name}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        {formatDateTime(event.start_time)}
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        <span className="text-white font-medium">{sold}</span>
-                        <span className="text-night-500"> / {event.total_capacity}</span>
-                      </td>
-                      <td className="py-3 px-4 text-night-300">
-                        {formatCurrency(revenue)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <StatusBadge status={status} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <EventsTable events={eventRows} />
       </div>
     </div>
-  )
-}
-
-function StatusBadge({ status }: { status: 'draft' | 'published' | 'cancelled' }) {
-  const styles = {
-    draft: 'bg-yellow-500/10 text-yellow-400',
-    published: 'bg-green-500/10 text-green-400',
-    cancelled: 'bg-red-500/10 text-red-400',
-  }
-
-  return (
-    <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium capitalize ${styles[status]}`}>
-      {status}
-    </span>
   )
 }

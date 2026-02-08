@@ -13,11 +13,12 @@ export function generateQRPayload(ticketId: string, eventId: string): {
   qrCode: string
   qrSignature: string
 } {
-  // Generate 4-char nonce
+  // Generate 4-char nonce using cryptographically secure randomness
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789'
+  const randomBytes = crypto.randomBytes(4)
   let nonce = ''
   for (let i = 0; i < 4; i++) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length))
+    nonce += chars.charAt(randomBytes[i] % chars.length)
   }
 
   const payload = `TM:${ticketId}:${eventId}:${nonce}`
@@ -25,7 +26,7 @@ export function generateQRPayload(ticketId: string, eventId: string): {
     .createHmac('sha256', getQRSecret())
     .update(payload)
     .digest('hex')
-    .substring(0, 16)
+    .substring(0, 32)
 
   const qrCode = `${payload}:${signature}`
   return { qrCode, qrSignature: signature }
@@ -48,9 +49,12 @@ export function validateQRCode(qrData: string): {
     .createHmac('sha256', getQRSecret())
     .update(payload)
     .digest('hex')
-    .substring(0, 16)
+    .substring(0, 32)
 
-  if (receivedSignature !== expectedSignature) {
+  // Use constant-time comparison to prevent timing attacks
+  const sigBuffer = Buffer.from(receivedSignature, 'utf8')
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+  if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
     return { valid: false, error: 'Invalid ticket — signature mismatch' }
   }
 

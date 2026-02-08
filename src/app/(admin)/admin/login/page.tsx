@@ -87,7 +87,7 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-night-800 border border-night-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder:text-night-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder:text-night-400 focus:outline-hidden focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors"
                   placeholder="admin@tajmahalsharm.com"
                   required
                 />
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-night-800 border border-night-600 rounded-lg py-2.5 pl-10 pr-12 text-white placeholder:text-night-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-600 rounded-lg py-2.5 pl-10 pr-12 text-white placeholder:text-night-400 focus:outline-hidden focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-colors"
                   placeholder="Enter your password"
                   required
                 />

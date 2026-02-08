@@ -1,15 +1,20 @@
 import { PaymentProvider } from './types'
 import { MockPaymentProvider } from './mock'
+import { CyberSourceProvider } from './cybersource'
 
 export function getPaymentProvider(): PaymentProvider {
   const provider = process.env.PAYMENT_PROVIDER || 'mock'
 
   switch (provider) {
     case 'mock':
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          '[FATAL] Mock payment provider cannot be used in production. Set PAYMENT_PROVIDER to a real provider (e.g. "cybersource").'
+        )
+      }
       return new MockPaymentProvider()
     case 'cybersource':
-      // Will be implemented when credentials are available
-      throw new Error('CyberSource provider not yet implemented. Set PAYMENT_PROVIDER=mock')
+      return new CyberSourceProvider()
     default:
       throw new Error(`Unknown payment provider: ${provider}`)
   }

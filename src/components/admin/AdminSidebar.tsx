@@ -11,9 +11,14 @@ import {
   Crown,
   ScanLine,
   UserCog,
+  RefreshCw,
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Tag,
+  Megaphone,
+  BarChart3,
+  Download,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,9 +27,13 @@ const navItems = [
   { href: '/admin/events', label: 'Events', icon: Calendar },
   { href: '/admin/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/admin/customers', label: 'Customers', icon: Users },
+  { href: '/admin/promoters', label: 'Promoters', icon: Megaphone },
+  { href: '/admin/promo-codes', label: 'Promo Codes', icon: Tag },
+  { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/vip', label: 'VIP Inquiries', icon: Crown },
   { href: '/admin/scanner', label: 'Scanner', icon: ScanLine },
   { href: '/admin/staff', label: 'Staff', icon: UserCog },
+  { href: '/admin/recurring', label: 'Recurring', icon: RefreshCw },
 ]
 
 export default function AdminSidebar() {
@@ -79,7 +88,7 @@ export default function AdminSidebar() {
               }`}
               title={collapsed ? item.label : undefined}
             >
-              <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-gold-400' : ''}`} />
+              <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-gold-400' : ''}`} />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           )
@@ -93,7 +102,7 @@ export default function AdminSidebar() {
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-night-300 hover:bg-red-500/10 hover:text-red-400 transition-colors w-full"
           title={collapsed ? 'Sign out' : undefined}
         >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
+          <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>

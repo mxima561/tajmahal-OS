@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatDateTime } from '@/lib/utils/format'
 import { VipInquiry } from '@/types/database'
 import { ArrowLeft } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { VipInquiryEditor } from './VipInquiryEditor'
@@ -25,9 +27,10 @@ async function getInquiry(id: string) {
 export default async function VipInquiryDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const inquiry = await getInquiry(params.id)
+  const { id } = await params
+  const inquiry = await getInquiry(id)
 
   if (!inquiry) {
     notFound()

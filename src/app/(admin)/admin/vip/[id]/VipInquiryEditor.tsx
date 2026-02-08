@@ -67,7 +67,7 @@ export function VipInquiryEditor({
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className={`px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gold-500/50 ${
+          className={`px-3 py-2 rounded-lg border text-sm font-medium focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 ${
             statusStyles[status] || 'bg-night-800 border-night-600 text-white'
           }`}
         >
@@ -89,7 +89,7 @@ export function VipInquiryEditor({
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add internal notes about this inquiry..."
           rows={4}
-          className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 resize-y"
+          className="w-full px-4 py-3 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 resize-y"
         />
       </div>
 

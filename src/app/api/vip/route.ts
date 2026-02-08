@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rate-limit'
+import { sendTelegramMessage } from '@/lib/telegram'
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
 
 const vipSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -12,6 +18,18 @@ const vipSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown'
+    const { limited, retryAfterMs } = await rateLimit(`vip:${ip}`, 5, 60000)
+    if (limited) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+      )
+    }
+
     const body = await request.json()
     const parsed = vipSchema.safeParse(body)
 
@@ -61,6 +79,17 @@ export async function POST(request: Request) {
         { status: 500 }
       )
     }
+
+    // Send Telegram notification (fire-and-forget)
+    sendTelegramMessage(
+      `🎉 <b>New VIP Inquiry</b>\n\n` +
+      `<b>Name:</b> ${escapeHtml(name)}\n` +
+      `<b>Phone:</b> ${escapeHtml(phone)}\n` +
+      `<b>Email:</b> ${escapeHtml(email)}\n` +
+      `<b>Party Size:</b> ${partySize}\n` +
+      (message ? `<b>Message:</b> ${escapeHtml(message)}\n` : '') +
+      `\n📋 <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://tajmahal-tickets.vercel.app'}/admin/vip">View in Admin</a>`
+    ).catch((err) => console.error('[Telegram] Notification failed:', err))
 
     return NextResponse.json({ success: true })
   } catch (error) {

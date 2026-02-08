@@ -55,7 +55,7 @@ export default function VipPage() {
     <div className="bg-night-950 min-h-screen">
       {/* Header */}
       <section className="pt-16 pb-12 text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gold-500/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gold-500/4 rounded-full blur-[120px]" />
         <div className="relative mx-auto max-w-2xl px-4 sm:px-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gold-500/10 border border-gold-500/20 mb-6">
             <Crown className="w-8 h-8 text-gold-500" />
@@ -100,7 +100,7 @@ export default function VipPage() {
                   type="text"
                   placeholder="Your full name"
                   {...register('name')}
-                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
                 />
                 {errors.name && (
                   <p className="mt-1 text-sm text-red-400">{errors.name.message}</p>
@@ -117,7 +117,7 @@ export default function VipPage() {
                   type="email"
                   placeholder="you@example.com"
                   {...register('email')}
-                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
                 />
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-400">{errors.email.message}</p>
@@ -134,7 +134,7 @@ export default function VipPage() {
                   type="tel"
                   placeholder="+1 (555) 000-0000"
                   {...register('phone')}
-                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
                 />
                 {errors.phone && (
                   <p className="mt-1 text-sm text-red-400">{errors.phone.message}</p>
@@ -152,7 +152,7 @@ export default function VipPage() {
                   min={1}
                   placeholder="2"
                   {...register('partySize', { valueAsNumber: true })}
-                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
+                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors"
                 />
                 {errors.partySize && (
                   <p className="mt-1 text-sm text-red-400">{errors.partySize.message}</p>
@@ -169,7 +169,7 @@ export default function VipPage() {
                   rows={4}
                   placeholder="Birthday celebration, preferred seating area, dietary requirements..."
                   {...register('message')}
-                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors resize-none"
+                  className="w-full bg-night-800 border border-night-700 rounded-lg px-4 py-3 text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-colors resize-none"
                 />
               </div>
 
@@ -177,7 +177,7 @@ export default function VipPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gold-500 hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed text-night-950 font-bold text-sm py-3.5 rounded-lg tracking-[0.1em] uppercase transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-gold-500 hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed text-night-950 font-bold text-sm py-3.5 rounded-lg tracking-widest uppercase transition-colors flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>

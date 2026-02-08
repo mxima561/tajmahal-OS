@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatEventDate, formatRelative } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import {
   DollarSign,
   ShoppingCart,
@@ -14,11 +16,12 @@ async function getDashboardData() {
   const supabase = await createServerSupabaseClient()
   const now = new Date().toISOString()
 
-  // Total Revenue: sum of all paid orders
+  // Total Revenue: sum of paid orders (with safety limit)
   const { data: paidOrders } = await supabase
     .from('orders')
     .select('total')
     .eq('payment_status', 'paid')
+    .limit(10000)
 
   const totalRevenue = paidOrders?.reduce((sum, o) => sum + (o.total || 0), 0) ?? 0
 

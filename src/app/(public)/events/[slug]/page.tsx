@@ -1,13 +1,17 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import type { EventWithTicketTypes } from '@/types/database'
+
+export const revalidate = 30
 import { formatEventDate, formatEventTime, formatCurrency } from '@/lib/utils/format'
 import { Calendar, Clock, MapPin, Ticket } from 'lucide-react'
 import TicketSelector from '@/components/public/TicketSelector'
 
 interface EventPageProps {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 async function getEvent(slug: string): Promise<EventWithTicketTypes | null> {
@@ -24,7 +28,8 @@ async function getEvent(slug: string): Promise<EventWithTicketTypes | null> {
 }
 
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
-  const event = await getEvent(params.slug)
+  const { slug } = await params
+  const event = await getEvent(slug)
   if (!event) return { title: 'Event Not Found' }
 
   return {
@@ -36,7 +41,8 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 }
 
 export default async function EventPage({ params }: EventPageProps) {
-  const event = await getEvent(params.slug)
+  const { slug } = await params
+  const event = await getEvent(slug)
 
   if (!event || event.status !== 'published' || event.cancelled_at) {
     notFound()
@@ -69,9 +75,24 @@ export default async function EventPage({ params }: EventPageProps) {
     <div className="bg-night-950">
       {/* Banner */}
       <div
-        className={`relative w-full aspect-[21/9] bg-gradient-to-br ${gradients[gradientIndex]} overflow-hidden`}
+        className={`relative w-full aspect-[21/9] ${event.featured_image_url ? 'bg-night-900' : `bg-linear-to-br ${gradients[gradientIndex]}`} overflow-hidden`}
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-night-950 via-night-950/40 to-transparent" />
+        {event.featured_image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.featured_image_url}
+            alt={event.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/images/Friday-Night-atTaj-Mahal-Club-Sharm-El-Sheikh.webp"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+        )}
+        <div className="absolute inset-0 bg-linear-to-t from-night-950 via-night-950/40 to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.08),transparent_70%)]" />
 
         {/* Event title overlay on banner */}
@@ -85,6 +106,11 @@ export default async function EventPage({ params }: EventPageProps) {
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight">
               {event.name}
             </h1>
+            {event.dj_name && (
+              <p className="text-xl sm:text-2xl text-gold-400 font-semibold mt-2">
+                featuring {event.dj_name}
+              </p>
+            )}
           </div>
         </div>
       </div>

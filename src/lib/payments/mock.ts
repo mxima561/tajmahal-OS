@@ -40,7 +40,7 @@ export class MockPaymentProvider implements PaymentProvider {
     }
   }
 
-  async refundPayment(_transactionId: string, _amount: number): Promise<RefundResult> {
+  async refundPayment(_transactionId: string, _amount: number, _currency?: string): Promise<RefundResult> {
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     return {

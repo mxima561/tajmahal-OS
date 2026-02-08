@@ -1,12 +1,18 @@
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidUUID } from '@/lib/utils/validation'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const staffId = params.id
+    const { id: staffId } = await params
+
+    // Validate UUID format
+    if (!isValidUUID(staffId)) {
+      return NextResponse.json({ error: 'Invalid staff ID format' }, { status: 400 })
+    }
 
     // Verify requester is authenticated and is super_admin
     const supabase = await createServerSupabaseClient()

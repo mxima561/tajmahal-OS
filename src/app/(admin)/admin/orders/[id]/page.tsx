@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDateTime } from '@/lib/utils/format'
 import { ArrowLeft, User, Calendar, Package, Ticket } from 'lucide-react'
+
+export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CancelOrderButton } from './cancel-order-button'
@@ -26,20 +28,37 @@ async function getOrder(id: string) {
 export default async function AdminOrderDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const order = await getOrder(params.id)
+  const { id } = await params
+  const order = await getOrder(id)
 
   if (!order) {
     notFound()
   }
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const event = order.events as any
-  const customer = order.customers as any
-  const orderItems = (order.order_items || []) as any[]
-  const tickets = (order.tickets || []) as any[]
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+  const event = order.events as { name: string; start_time: string } | null
+  const customer = order.customers as {
+    name: string
+    email: string
+    phone: string | null
+    total_orders: number | null
+    total_spent: number | null
+  } | null
+  const orderItems = (order.order_items || []) as {
+    id: string
+    quantity: number
+    unit_price: number
+    total_price: number
+    ticket_types: { name: string } | null
+  }[]
+  const tickets = (order.tickets || []) as {
+    id: string
+    display_code: string
+    status: string
+    checked_in_at: string | null
+    qr_code: string
+  }[]
 
   return (
     <div className="space-y-6">
@@ -164,8 +183,7 @@ export default async function AdminOrderDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {orderItems.map((item: any) => (
+                {orderItems.map((item) => (
                   <tr key={item.id} className="border-b border-night-800 last:border-0">
                     <td className="py-3 px-4 text-white font-medium">
                       {item.ticket_types?.name || '—'}
@@ -205,8 +223,7 @@ export default async function AdminOrderDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {tickets.map((ticket: any) => (
+                {tickets.map((ticket) => (
                   <tr key={ticket.id} className="border-b border-night-800 last:border-0">
                     <td className="py-3 px-4 text-white font-mono font-medium">
                       {ticket.display_code}

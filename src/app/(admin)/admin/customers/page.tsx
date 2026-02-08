@@ -1,39 +1,61 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatRelative } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import { Users, Search } from 'lucide-react'
 import Link from 'next/link'
 
-async function getCustomers(searchQuery?: string) {
+const PAGE_SIZE = 50
+
+async function getCustomers(searchQuery?: string, page?: string) {
   const supabase = await createServerSupabaseClient()
+  const currentPage = Math.max(1, parseInt(page || '1', 10) || 1)
+  const from = (currentPage - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   let query = supabase
     .from('customers')
-    .select('*')
+    .select('*', { count: 'exact' })
     .order('total_spent', { ascending: false, nullsFirst: false })
+    .range(from, to)
 
   if (searchQuery) {
-    query = query.or(
-      `name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
-    )
+    // Sanitize search input to prevent PostgREST filter injection
+    const sanitized = searchQuery.replace(/[,.*()]/g, '')
+    if (sanitized) {
+      query = query.or(
+        `name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+      )
+    }
   }
 
-  const { data: customers, error } = await query
+  const { data: customers, error, count } = await query
 
   if (error) {
     console.error('Error fetching customers:', error)
-    return []
+    return { customers: [], totalCount: 0, currentPage }
   }
 
-  return customers || []
+  return { customers: customers || [], totalCount: count ?? 0, currentPage }
 }
 
 export default async function AdminCustomersPage({
   searchParams,
 }: {
-  searchParams: { q?: string }
+  searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  const searchQuery = searchParams.q || ''
-  const customers = await getCustomers(searchQuery || undefined)
+  const resolvedSearchParams = await searchParams
+  const searchQuery = resolvedSearchParams.q || ''
+  const { customers, totalCount, currentPage } = await getCustomers(searchQuery || undefined, resolvedSearchParams.page)
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  function buildPageUrl(page: number) {
+    const params = new URLSearchParams()
+    if (searchQuery) params.set('q', searchQuery)
+    if (page > 1) params.set('page', String(page))
+    const qs = params.toString()
+    return `/admin/customers${qs ? `?${qs}` : ''}`
+  }
 
   return (
     <div className="space-y-6">
@@ -54,7 +76,7 @@ export default async function AdminCustomersPage({
                 name="q"
                 defaultValue={searchQuery}
                 placeholder="Search customers..."
-                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
+                className="w-full pl-9 pr-4 py-2 bg-night-800 border border-night-600 rounded-lg text-sm text-white placeholder:text-night-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500"
               />
             </form>
           </div>
@@ -67,46 +89,86 @@ export default async function AdminCustomersPage({
             <p className="text-sm">No customers found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-night-700 text-night-400">
-                  <th className="text-left py-3 px-4 font-medium">Name</th>
-                  <th className="text-left py-3 px-4 font-medium">Email</th>
-                  <th className="text-left py-3 px-4 font-medium">Phone</th>
-                  <th className="text-left py-3 px-4 font-medium">Total Orders</th>
-                  <th className="text-left py-3 px-4 font-medium">Total Spent</th>
-                  <th className="text-left py-3 px-4 font-medium">Last Order</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="border-b border-night-800 last:border-0 hover:bg-night-800 transition-colors"
-                  >
-                    <td className="py-3 px-4">
-                      <Link
-                        href={`/admin/customers/${customer.id}`}
-                        className="font-medium text-white hover:text-gold-400 transition-colors"
-                      >
-                        {customer.name}
-                      </Link>
-                    </td>
-                    <td className="py-3 px-4 text-night-300">{customer.email}</td>
-                    <td className="py-3 px-4 text-night-300">{customer.phone || '—'}</td>
-                    <td className="py-3 px-4 text-night-300">{customer.total_orders || 0}</td>
-                    <td className="py-3 px-4 text-night-300">
-                      {formatCurrency(customer.total_spent || 0)}
-                    </td>
-                    <td className="py-3 px-4 text-night-300">
-                      {customer.last_order_at ? formatRelative(customer.last_order_at) : '—'}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-night-700 text-night-400">
+                    <th className="text-left py-3 px-4 font-medium">Name</th>
+                    <th className="text-left py-3 px-4 font-medium">Email</th>
+                    <th className="text-left py-3 px-4 font-medium">Phone</th>
+                    <th className="text-left py-3 px-4 font-medium">Total Orders</th>
+                    <th className="text-left py-3 px-4 font-medium">Total Spent</th>
+                    <th className="text-left py-3 px-4 font-medium">Last Order</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {customers.map((customer) => (
+                    <tr
+                      key={customer.id}
+                      className="border-b border-night-800 last:border-0 hover:bg-night-800 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <Link
+                          href={`/admin/customers/${customer.id}`}
+                          className="font-medium text-white hover:text-gold-400 transition-colors"
+                        >
+                          {customer.name}
+                        </Link>
+                      </td>
+                      <td className="py-3 px-4 text-night-300">{customer.email}</td>
+                      <td className="py-3 px-4 text-night-300">{customer.phone || '—'}</td>
+                      <td className="py-3 px-4 text-night-300">{customer.total_orders || 0}</td>
+                      <td className="py-3 px-4 text-night-300">
+                        {formatCurrency(customer.total_spent || 0)}
+                      </td>
+                      <td className="py-3 px-4 text-night-300">
+                        {customer.last_order_at ? formatRelative(customer.last_order_at) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-night-700">
+                <span className="text-sm text-night-400">
+                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount.toLocaleString()} customers
+                </span>
+                <div className="flex items-center gap-2">
+                  {currentPage > 1 ? (
+                    <Link
+                      href={buildPageUrl(currentPage - 1)}
+                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-300 hover:text-white transition-colors"
+                    >
+                      Previous
+                    </Link>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-600 cursor-not-allowed">
+                      Previous
+                    </span>
+                  )}
+                  <span className="text-sm text-night-300">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  {currentPage < totalPages ? (
+                    <Link
+                      href={buildPageUrl(currentPage + 1)}
+                      className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-300 hover:text-white transition-colors"
+                    >
+                      Next
+                    </Link>
+                  ) : (
+                    <span className="px-3 py-1.5 rounded-md text-sm font-medium bg-night-800 text-night-600 cursor-not-allowed">
+                      Next
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

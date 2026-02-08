@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { formatCurrency, formatDateTime } from '@/lib/utils/format'
+
+export const dynamic = 'force-dynamic'
 import { ArrowLeft, User, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -40,9 +42,10 @@ async function getCustomerOrders(customerId: string) {
 export default async function AdminCustomerDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const customer = await getCustomer(params.id)
+  const { id } = await params
+  const customer = await getCustomer(id)
 
   if (!customer) {
     notFound()

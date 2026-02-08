@@ -31,7 +31,7 @@ export function ScannerUrlCopy({ url }: { url: string }) {
       </code>
       <button
         onClick={handleCopy}
-        className="flex-shrink-0 bg-night-700 hover:bg-night-600 border border-night-600 text-white px-3 py-2 rounded-lg transition-colors text-sm flex items-center gap-1.5"
+        className="shrink-0 bg-night-700 hover:bg-night-600 border border-night-600 text-white px-3 py-2 rounded-lg transition-colors text-sm flex items-center gap-1.5"
       >
         {copied ? (
           <>

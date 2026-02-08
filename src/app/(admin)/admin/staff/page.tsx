@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { AdminUser } from '@/types/database'
+
+export const dynamic = 'force-dynamic'
 import { Users, ScanLine } from 'lucide-react'
 import { StaffManager } from './StaffManager'
 import { headers } from 'next/headers'

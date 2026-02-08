@@ -86,10 +86,12 @@ export type Database = {
           cancelled_at: string | null
           created_at: string | null
           description: string | null
+          dj_name: string | null
           doors_open: string | null
           end_time: string | null
           featured_image_url: string | null
           id: string
+          is_auto_generated: boolean | null
           is_featured: boolean | null
           name: string
           sale_end: string | null
@@ -98,6 +100,7 @@ export type Database = {
           start_time: string
           status: string
           total_capacity: number
+          venue_capacity: number | null
           updated_at: string | null
           venue_id: string
         }
@@ -105,10 +108,12 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string | null
           description?: string | null
+          dj_name?: string | null
           doors_open?: string | null
           end_time?: string | null
           featured_image_url?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           is_featured?: boolean | null
           name: string
           sale_end?: string | null
@@ -117,6 +122,7 @@ export type Database = {
           start_time: string
           status?: string
           total_capacity: number
+          venue_capacity?: number | null
           updated_at?: string | null
           venue_id: string
         }
@@ -124,10 +130,12 @@ export type Database = {
           cancelled_at?: string | null
           created_at?: string | null
           description?: string | null
+          dj_name?: string | null
           doors_open?: string | null
           end_time?: string | null
           featured_image_url?: string | null
           id?: string
+          is_auto_generated?: boolean | null
           is_featured?: boolean | null
           name?: string
           sale_end?: string | null
@@ -136,6 +144,7 @@ export type Database = {
           start_time?: string
           status?: string
           total_capacity?: number
+          venue_capacity?: number | null
           updated_at?: string | null
           venue_id?: string
         }
@@ -214,6 +223,9 @@ export type Database = {
           total: number
           turnstile_verified: boolean | null
           updated_at: string | null
+          promoter_id: string | null
+          promo_code_id: string | null
+          discount_amount: number | null
         }
         Insert: {
           created_at?: string | null
@@ -234,6 +246,9 @@ export type Database = {
           total: number
           turnstile_verified?: boolean | null
           updated_at?: string | null
+          promoter_id?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
         }
         Update: {
           created_at?: string | null
@@ -254,6 +269,9 @@ export type Database = {
           total?: number
           turnstile_verified?: boolean | null
           updated_at?: string | null
+          promoter_id?: string | null
+          promo_code_id?: string | null
+          discount_amount?: number | null
         }
         Relationships: [
           {
@@ -481,12 +499,388 @@ export type Database = {
           },
         ]
       }
+      friday_event_template: {
+        Row: {
+          id: string
+          venue_id: string
+          event_name: string
+          description: string | null
+          doors_open_time: string
+          start_time: string
+          end_time: string
+          default_status: string
+          weeks_ahead: number
+          is_active: boolean
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          venue_id: string
+          event_name?: string
+          description?: string | null
+          doors_open_time?: string
+          start_time?: string
+          end_time?: string
+          default_status?: string
+          weeks_ahead?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          venue_id?: string
+          event_name?: string
+          description?: string | null
+          doors_open_time?: string
+          start_time?: string
+          end_time?: string
+          default_status?: string
+          weeks_ahead?: number
+          is_active?: boolean
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_event_template_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      friday_template_ticket_types: {
+        Row: {
+          id: string
+          template_id: string
+          name: string
+          price: number
+          currency: string
+          quantity_total: number
+          max_per_order: number | null
+          description: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          name: string
+          price: number
+          currency?: string
+          quantity_total: number
+          max_per_order?: number | null
+          description?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          name?: string
+          price?: number
+          currency?: string
+          quantity_total?: number
+          max_per_order?: number | null
+          description?: string | null
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "friday_template_ticket_types_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "friday_event_template"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      check_in_logs: {
+        Row: {
+          id: string
+          ticket_id: string | null
+          order_id: string | null
+          event_id: string
+          scanned_by: string | null
+          scanned_at: string
+          scan_result: string
+          device_info: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_id?: string | null
+          order_id?: string | null
+          event_id: string
+          scanned_by?: string | null
+          scanned_at?: string
+          scan_result: string
+          device_info?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_id?: string | null
+          order_id?: string | null
+          event_id?: string
+          scanned_by?: string | null
+          scanned_at?: string
+          scan_result?: string
+          device_info?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_in_logs_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_in_logs_scanned_by_fkey"
+            columns: ["scanned_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_list_entries: {
+        Row: {
+          id: string
+          event_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          plus_count: number | null
+          added_by: string | null
+          added_by_name: string | null
+          status: string
+          checked_in_at: string | null
+          checked_in_by: string | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          plus_count?: number | null
+          added_by?: string | null
+          added_by_name?: string | null
+          status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          plus_count?: number | null
+          added_by?: string | null
+          added_by_name?: string | null
+          status?: string
+          checked_in_at?: string | null
+          checked_in_by?: string | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_list_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_list_entries_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_list_entries_checked_in_by_fkey"
+            columns: ["checked_in_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promoters: {
+        Row: {
+          id: string
+          name: string
+          email: string | null
+          phone: string | null
+          commission_rate: number | null
+          status: string
+          total_sales: number | null
+          total_revenue: number | null
+          total_commission: number | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          email?: string | null
+          phone?: string | null
+          commission_rate?: number | null
+          status?: string
+          total_sales?: number | null
+          total_revenue?: number | null
+          total_commission?: number | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string | null
+          phone?: string | null
+          commission_rate?: number | null
+          status?: string
+          total_sales?: number | null
+          total_revenue?: number | null
+          total_commission?: number | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          id: string
+          code: string
+          event_id: string | null
+          promoter_id: string | null
+          discount_type: string
+          discount_amount: number
+          max_uses: number | null
+          current_uses: number | null
+          valid_from: string | null
+          valid_until: string | null
+          is_active: boolean | null
+          created_by: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          code: string
+          event_id?: string | null
+          promoter_id?: string | null
+          discount_type: string
+          discount_amount: number
+          max_uses?: number | null
+          current_uses?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          is_active?: boolean | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          code?: string
+          event_id?: string | null
+          promoter_id?: string | null
+          discount_type?: string
+          discount_amount?: number
+          max_uses?: number | null
+          current_uses?: number | null
+          valid_from?: string | null
+          valid_until?: string | null
+          is_active?: boolean | null
+          created_by?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_promoter_id_fkey"
+            columns: ["promoter_id"]
+            isOneToOne: false
+            referencedRelation: "promoters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reserve_tickets: {
+        Args: {
+          p_ticket_type_id: string
+          p_event_id: string
+          p_quantity: number
+        }
+        Returns: {
+          success: boolean
+          error: string | null
+          name: string | null
+          price: number | null
+          quantity: number | null
+        }
+      }
+      release_tickets: {
+        Args: {
+          p_ticket_type_id: string
+          p_quantity: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -512,6 +906,12 @@ export type Order = Tables<'orders'>
 export type OrderItem = Tables<'order_items'>
 export type Ticket = Tables<'tickets'>
 export type VipInquiry = Tables<'vip_inquiries'>
+export type FridayEventTemplate = Tables<'friday_event_template'>
+export type FridayTemplateTicketType = Tables<'friday_template_ticket_types'>
+export type CheckInLog = Tables<'check_in_logs'>
+export type GuestListEntry = Tables<'guest_list_entries'>
+export type Promoter = Tables<'promoters'>
+export type PromoCode = Tables<'promo_codes'>
 
 // Event with relations
 export type EventWithTicketTypes = Event & {
