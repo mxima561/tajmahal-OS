@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { formatZodError } from '@/lib/utils/error-response'
 
 const addGuestSchema = z.object({
   eventId: z.string().uuid(),
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.flatten() },
+        formatZodError(parsed.error),
         { status: 400 }
       )
     }
@@ -149,7 +150,7 @@ export async function PUT(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.flatten() },
+        formatZodError(parsed.error),
         { status: 400 }
       )
     }

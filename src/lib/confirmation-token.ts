@@ -4,13 +4,17 @@ import crypto from 'crypto'
  * Generate a short-lived HMAC token for confirmation page access.
  * Token format: {expiry_hex}:{hmac_signature}
  * Valid for 1 hour by default.
+ *
+ * Security: Uses a separate secret from QR code signing to limit blast radius
+ * if either secret is compromised.
  */
 const TOKEN_TTL_MS = 60 * 60 * 1000
 
 function getSecret(): string {
-  const secret = process.env.QR_SIGNING_SECRET
+  // Use dedicated secret if available, fallback to QR secret for backward compatibility
+  const secret = process.env.CONFIRMATION_TOKEN_SECRET || process.env.QR_SIGNING_SECRET
   if (!secret) {
-    throw new Error('QR_SIGNING_SECRET environment variable is required')
+    throw new Error('CONFIRMATION_TOKEN_SECRET or QR_SIGNING_SECRET environment variable is required')
   }
   return secret
 }

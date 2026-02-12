@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rate-limit'
+import { formatZodError } from '@/lib/utils/error-response'
 
 const validatePromoSchema = z.object({
   code: z.string().min(1).max(50),
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.flatten() },
+        formatZodError(parsed.error),
         { status: 400 }
       )
     }

@@ -4,6 +4,7 @@ import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supab
 import { generateOrderNumber, generateDisplayCode } from '@/lib/utils/format'
 import { generateQRPayload } from '@/lib/qr'
 import { getEventCapacity } from '@/lib/capacity'
+import { formatZodError } from '@/lib/utils/error-response'
 
 const doorSaleSchema = z.object({
   eventId: z.string().uuid(),
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.flatten() },
+        formatZodError(parsed.error),
         { status: 400 }
       )
     }
