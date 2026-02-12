@@ -19,41 +19,36 @@ export default function AdminLoginPage() {
     setError('')
     setLoading(true)
 
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      // Use rate-limited API route for login
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (authError || !authData.user) {
-      setError('Invalid email or password')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed')
+        setLoading(false)
+        return
+      }
+
+      // Set the session in the browser client
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        })
+      }
+
+      router.push('/admin')
+      router.refresh()
+    } catch {
+      setError('An unexpected error occurred')
       setLoading(false)
-      return
     }
-
-    // Verify user is an admin
-    const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('id, role')
-      .eq('auth_user_id', authData.user.id)
-      .single()
-
-    if (adminError || !adminUser) {
-      console.error('Admin check failed:', adminError?.message, 'for user:', authData.user.id)
-      await supabase.auth.signOut()
-      setError('You do not have admin access')
-      setLoading(false)
-      return
-    }
-
-    // Update last login (non-blocking)
-    supabase
-      .from('admin_users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', adminUser.id)
-      .then(() => {})
-
-    router.push('/admin')
-    router.refresh()
   }
 
   return (

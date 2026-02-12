@@ -110,7 +110,8 @@ src/
 ### Authentication & Authorization
 - **Admin auth**: Supabase Auth + `admin_users` table lookup. RLS uses `auth.uid() = auth_user_id` (no recursive subqueries).
 - **Roles**: `super_admin`, `manager`, `staff`. Only super_admin can invite/delete staff.
-- **Route protection**: Middleware redirects unauthenticated users from `/admin/*` and `/scanner/*` to `/admin/login`. Authenticated users on `/admin/login` redirect to `/admin`.
+- **Route protection**: Middleware redirects unauthenticated users from `/admin/*` and `/scanner/*` to `/admin/login`. Middleware also verifies user exists in `admin_users` table before granting access. Authenticated users on `/admin/login` redirect to `/admin`.
+- **Login rate limiting**: Login attempts are rate limited to 5 per minute per IP via `/api/auth/login`.
 - **No customer accounts**: Customers are silently linked by email — no registration or login.
 
 ### Next.js 16 Async APIs
@@ -199,12 +200,15 @@ QR_SIGNING_SECRET              # HMAC secret for QR code signatures
 
 ### Optional
 ```
+CONFIRMATION_TOKEN_SECRET      # HMAC secret for confirmation page tokens (isolated from QR)
 RESEND_API_KEY                 # Email delivery; if unset, logs to console
 NEXT_PUBLIC_TURNSTILE_SITE_KEY # Cloudflare bot protection (client-side)
 TURNSTILE_SECRET_KEY           # Cloudflare bot protection (server validation)
 NEXT_PUBLIC_SITE_URL           # Site URL (default: http://localhost:3000)
 TELEGRAM_BOT_TOKEN             # Telegram bot for VIP inquiry notifications
 TELEGRAM_CHAT_ID               # Telegram group/chat for VIP alerts
+UPSTASH_REDIS_REST_URL         # Upstash Redis for rate limiting (optional, falls back to in-memory)
+UPSTASH_REDIS_REST_TOKEN       # Upstash Redis token
 ```
 
 ### CyberSource (WIP)
@@ -226,5 +230,8 @@ CYBERSOURCE_ENVIRONMENT        # sandbox | production (default: sandbox)
 - **ESLint**: Flat config (`eslint.config.mjs`). Unused args prefixed with `_` are allowed.
 - **TypeScript**: Strict mode enabled. Path resolution via bundler.
 - **Animations**: Import from `motion/react` (not `framer-motion`).
-- **Security headers**: Configured in `next.config.mjs` (X-Frame-Options, CSP, etc.)
+- **Security headers**: Configured in `next.config.mjs` (X-Frame-Options, X-Content-Type-Options, HSTS, CSP, Referrer-Policy, Permissions-Policy)
+- **Audit logging**: Admin actions logged to `audit_logs` table via `logAuditEvent()` helper
+- **File upload validation**: Magic byte validation (not just MIME type) for image uploads
+- **Error sanitization**: Zod validation details hidden in production via `formatZodError()` helper
 - **No tests**: Project has no test framework configured.

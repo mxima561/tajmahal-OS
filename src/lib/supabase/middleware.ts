@@ -39,10 +39,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Middleware only verifies authentication (is the user logged in?).
-  // Role-based access control (admin, manager, staff) is delegated to individual
-  // API route handlers, which check the `admin_users` table for the user's role.
-
   // Protect admin routes (except login)
   const isProtectedAdmin =
     pathname.startsWith('/admin') &&
@@ -65,17 +61,54 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // H6: Verify user exists in admin_users table for protected routes
+  // This prevents non-admin Supabase users from accessing admin/scanner pages
+  if ((isProtectedAdmin || isProtectedScanner) && user) {
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!adminUser) {
+      // User is authenticated but not an admin - sign them out and redirect
+      await supabase.auth.signOut()
+      const url = request.nextUrl.clone()
+      url.pathname = isProtectedScanner ? '/scanner/login' : '/admin/login'
+      url.searchParams.set('error', 'access_denied')
+      return NextResponse.redirect(url)
+    }
+  }
+
   // Redirect logged-in users away from login pages
   if (pathname === '/admin/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin'
-    return NextResponse.redirect(url)
+    // Verify they're actually an admin before redirecting
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (adminUser) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin'
+      return NextResponse.redirect(url)
+    }
   }
 
   if (pathname === '/scanner/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/scanner'
-    return NextResponse.redirect(url)
+    // Verify they're actually an admin before redirecting
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (adminUser) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/scanner'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse

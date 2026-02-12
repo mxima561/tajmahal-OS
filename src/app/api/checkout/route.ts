@@ -8,6 +8,7 @@ import { generateOrderNumber, generateDisplayCode, formatEventDate } from '@/lib
 import { sendOrderConfirmation } from '@/lib/email'
 import { rateLimit } from '@/lib/rate-limit'
 import { generateConfirmationToken } from '@/lib/confirmation-token'
+import { formatZodError } from '@/lib/utils/error-response'
 
 const checkoutSchema = z.object({
   eventId: z.string().uuid(),
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.flatten() },
+        formatZodError(parsed.error),
         { status: 400 }
       )
     }
